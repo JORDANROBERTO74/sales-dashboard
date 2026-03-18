@@ -44,6 +44,25 @@ type AssignmentRaw =
   | null
   | undefined;
 
+type StripeTransactionQueryRaw = {
+  id: string;
+  stripe_id?: string;
+  transaction_type?: StripeTransactionRow["transaction_type"];
+  stripe_status?: string;
+  amount?: number | string | null;
+  currency?: StripeTransactionRow["currency"] | null;
+  stripe_fee?: number | string | null;
+  net_amount?: number | string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
+  payment_method_type?: string | null;
+  stripe_product_id?: string | null;
+  stripe_created_at?: string | null;
+  funds_available_at?: string | null;
+  created_at: string;
+  transaction_assignments?: AssignmentRaw;
+};
+
 function firstArrayItem<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   if (Array.isArray(value)) return value[0] ?? null;
@@ -86,6 +105,12 @@ function mapAssignment(value: AssignmentRaw): TransactionAssignment | null {
     notes: assignment.notes ?? null,
     seller,
   };
+}
+
+function isStripeTransactionQueryRaw(value: unknown): value is StripeTransactionQueryRaw {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.id === "string" && typeof record.created_at === "string";
 }
 
 export async function GET(
@@ -172,23 +197,30 @@ export async function GET(
     );
   }
 
+  if (!isStripeTransactionQueryRaw(data)) {
+    return NextResponse.json(
+      { error: "Formato de transacción inválido", error_code: "TRANSACTION_INVALID_FORMAT" },
+      { status: 500 }
+    );
+  }
+
   const row: StripeTransactionRow = {
-    id: data.id as string,
-    stripe_id: data.stripe_id as string,
-    transaction_type: data.transaction_type as StripeTransactionRow["transaction_type"],
-    stripe_status: data.stripe_status as string,
+    id: data.id,
+    stripe_id: data.stripe_id ?? "",
+    transaction_type: (data.transaction_type ?? "charge") as StripeTransactionRow["transaction_type"],
+    stripe_status: data.stripe_status ?? "",
     amount: Number(data.amount ?? 0),
     currency: (data.currency as StripeTransactionRow["currency"]) ?? "usd",
     stripe_fee: Number(data.stripe_fee ?? 0),
     net_amount: Number(data.net_amount ?? 0),
-    customer_email: canViewCustomerData ? ((data.customer_email as string | null) ?? null) : null,
-    customer_name: canViewCustomerData ? ((data.customer_name as string | null) ?? null) : null,
-    payment_method_type: (data.payment_method_type as string | null) ?? null,
-    stripe_product_id: (data.stripe_product_id as string | null) ?? null,
-    stripe_created_at: (data.stripe_created_at as string | null) ?? null,
-    funds_available_at: (data.funds_available_at as string | null) ?? null,
-    created_at: data.created_at as string,
-    assignment: mapAssignment(data.transaction_assignments as AssignmentRaw),
+    customer_email: canViewCustomerData ? (data.customer_email ?? null) : null,
+    customer_name: canViewCustomerData ? (data.customer_name ?? null) : null,
+    payment_method_type: data.payment_method_type ?? null,
+    stripe_product_id: data.stripe_product_id ?? null,
+    stripe_created_at: data.stripe_created_at ?? null,
+    funds_available_at: data.funds_available_at ?? null,
+    created_at: data.created_at,
+    assignment: mapAssignment(data.transaction_assignments),
   };
 
   return NextResponse.json(

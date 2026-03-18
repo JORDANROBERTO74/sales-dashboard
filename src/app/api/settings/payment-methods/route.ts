@@ -52,10 +52,11 @@ async function attachSignedQrUrls(
   supabase: Awaited<ReturnType<typeof createClient>>,
   row: ReturnType<typeof decryptPaymentFields>
 ) {
-  if (row.method_type === "bank_qr" && row.qr_image_url) {
+  const bankQrPath = typeof row.qr_image_url === "string" ? row.qr_image_url : null;
+  if (row.method_type === "bank_qr" && bankQrPath) {
     const { data: signedData, error: signedError } = await supabase.storage
       .from("payment-qr")
-      .createSignedUrl(row.qr_image_url, 3600);
+      .createSignedUrl(bankQrPath, 3600);
 
     if (signedError) {
       return { ...row, qr_image_signed_url: null };
@@ -64,10 +65,12 @@ async function attachSignedQrUrls(
     return { ...row, qr_image_signed_url: signedData.signedUrl };
   }
 
-  if (row.method_type === "binance" && row.binance_qr_image_url) {
+  const binanceQrPath =
+    typeof row.binance_qr_image_url === "string" ? row.binance_qr_image_url : null;
+  if (row.method_type === "binance" && binanceQrPath) {
     const { data: signedData, error: signedError } = await supabase.storage
       .from("payment-qr")
-      .createSignedUrl(row.binance_qr_image_url, 3600);
+      .createSignedUrl(binanceQrPath, 3600);
 
     if (signedError) {
       return { ...row, binance_qr_image_signed_url: null };

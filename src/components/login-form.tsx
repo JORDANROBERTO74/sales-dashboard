@@ -70,8 +70,6 @@ export function LoginForm({
   title = "Bienvenido",
   description = "Ingresa tus credenciales para acceder a tu panel.",
   forgotPasswordLink = "/auth/forgot-password",
-  signUpLink = "/auth/sign-up",
-  signUpLinkText = "Regístrate",
   ...props
 }: LoginFormProps) {
   const { signIn, isPending, errorMessage } = useSignIn({

@@ -59,11 +59,7 @@ export function NavUser({
     refresh: true,
   });
 
-  // Handler to close sidebar and navigate
-  const handleLinkClick = (
-    _e: React.MouseEvent<HTMLAnchorElement>,
-    _href: string
-  ) => {
+  const handleLinkClick = () => {
     setOpenMobile(false);
   };
 
@@ -122,7 +118,7 @@ export function NavUser({
               <Link
                 href="/admin/settings/profile"
                 className="flex items-center cursor-pointer"
-                onClick={(e) => handleLinkClick(e, "/admin/settings/profile")}
+                onClick={handleLinkClick}
               >
                 <User className="mr-2 h-4 w-4" />
                 Mi perfil
@@ -132,7 +128,7 @@ export function NavUser({
               <Link
                 href="/admin/settings"
                 className="flex items-center cursor-pointer"
-                onClick={(e) => handleLinkClick(e, "/admin/settings")}
+                onClick={handleLinkClick}
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Configuración

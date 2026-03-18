@@ -29,6 +29,12 @@ import type { TransactionsFilters } from "@/types/transactions";
 import type { DateRange } from "react-day-picker";
 
 const PAGE_SIZE = 20;
+const EMPTY_SELLERS: Array<{
+  id: string;
+  full_name: string | null;
+  email: string;
+  role_name: string | null;
+}> = [];
 type TransactionsPanelProps = {
   accountExternalId?: string;
   accountRouteSegment: "jnode" | "vascruz";
@@ -94,15 +100,16 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
 
   const transactionsQuery = useInfiniteTransactions(filters, PAGE_SIZE);
 
-  const pages = transactionsQuery.data?.pages ?? [];
+  const pages = useMemo(() => transactionsQuery.data?.pages ?? [], [transactionsQuery.data]);
   const rows = pages.flatMap((pageData) => pageData.rows);
-  const allUsers = pages[0]?.sellers ?? [];
   const sellers = useMemo(
-    () =>
-      allUsers.filter((userOption) =>
+    () => {
+      const allUsers = pages[0]?.sellers ?? EMPTY_SELLERS;
+      return allUsers.filter((userOption) =>
         userOption.role_name ? ["owner", "admin", "seller"].includes(userOption.role_name) : false
-      ),
-    [allUsers]
+      );
+    },
+    [pages]
   );
   const total = pages[0]?.total ?? 0;
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = transactionsQuery;

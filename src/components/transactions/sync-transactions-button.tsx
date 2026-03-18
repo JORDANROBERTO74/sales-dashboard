@@ -21,7 +21,7 @@ export function SyncTransactionsButton({
     <Button
       className="w-full sm:w-auto"
       variant="outline"
-      onClick={() => syncMutation.mutate()}
+      onClick={() => syncMutation.mutate(undefined)}
       disabled={syncMutation.isPending || !isAdminLike}
     >
       {syncMutation.isPending ? (

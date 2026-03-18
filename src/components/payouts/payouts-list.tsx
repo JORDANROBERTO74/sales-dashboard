@@ -3,7 +3,6 @@
 import type { RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
 import type { PayoutMethod, PayoutRow, PayoutStatus } from "@/types/payouts";
@@ -44,9 +43,6 @@ function methodLabel(method: PayoutMethod) {
 
 export function PayoutsList({
   rows,
-  canManage,
-  isUpdating,
-  onUpdateStatus,
   infiniteSentinelRef,
   isFetchingNextPage,
   hasNextPage,
