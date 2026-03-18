@@ -91,7 +91,9 @@ function buildDateRange(
   }
 
   const now = new Date();
-  const toDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const toDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   const fromDate = new Date(toDate);
   fromDate.setUTCDate(fromDate.getUTCDate() - 29);
 
@@ -153,26 +155,30 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: accountOptionsData, error: accountOptionsError } = await supabase
-    .from("stripe_accounts")
-    .select("id, stripe_account_external_id, display_name")
-    .eq("is_active", true)
-    .order("display_name", { ascending: true });
+  const { data: accountOptionsData, error: accountOptionsError } =
+    await supabase
+      .from("stripe_accounts")
+      .select("id, stripe_account_external_id, display_name")
+      .eq("is_active", true)
+      .order("display_name", { ascending: true });
 
   if (accountOptionsError) {
     return NextResponse.json(
-      { error: accountOptionsError.message, error_code: "ACCOUNTS_FETCH_FAILED" },
+      {
+        error: accountOptionsError.message,
+        error_code: "ACCOUNTS_FETCH_FAILED",
+      },
       { status: 500 },
     );
   }
 
-  const accountOptions: DashboardAccountOption[] = (accountOptionsData ?? []).map(
-    (row) => ({
-      id: row.id as string,
-      external_id: row.stripe_account_external_id as string,
-      display_name: row.display_name as string,
-    }),
-  );
+  const accountOptions: DashboardAccountOption[] = (
+    accountOptionsData ?? []
+  ).map((row) => ({
+    id: row.id as string,
+    external_id: row.stripe_account_external_id as string,
+    display_name: row.display_name as string,
+  }));
 
   let selectedAccountId: string | null = null;
   if (parsed.data.accountExternalId) {
@@ -181,7 +187,10 @@ export async function GET(request: NextRequest) {
     );
     if (!matched) {
       return NextResponse.json(
-        { error: "Cuenta Stripe no encontrada", error_code: "INVALID_STRIPE_ACCOUNT" },
+        {
+          error: "Cuenta Stripe no encontrada",
+          error_code: "INVALID_STRIPE_ACCOUNT",
+        },
         { status: 400 },
       );
     }
@@ -215,7 +224,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (selectedAccountId) {
-    transactionsQuery = transactionsQuery.eq("stripe_account_id", selectedAccountId);
+    transactionsQuery = transactionsQuery.eq(
+      "stripe_account_id",
+      selectedAccountId,
+    );
   }
 
   const { data: transactionsData, error: transactionsError } =
@@ -223,7 +235,10 @@ export async function GET(request: NextRequest) {
 
   if (transactionsError) {
     return NextResponse.json(
-      { error: transactionsError.message, error_code: "TRANSACTIONS_FETCH_FAILED" },
+      {
+        error: transactionsError.message,
+        error_code: "TRANSACTIONS_FETCH_FAILED",
+      },
       { status: 500 },
     );
   }
@@ -284,7 +299,10 @@ export async function GET(request: NextRequest) {
 
   if (periodSellerError) {
     return NextResponse.json(
-      { error: periodSellerError.message, error_code: "SELLER_PERIOD_FETCH_FAILED" },
+      {
+        error: periodSellerError.message,
+        error_code: "SELLER_PERIOD_FETCH_FAILED",
+      },
       { status: 500 },
     );
   }
@@ -307,7 +325,10 @@ export async function GET(request: NextRequest) {
   const { data: balancesData, error: balancesError } = await balancesQuery;
   if (balancesError) {
     return NextResponse.json(
-      { error: balancesError.message, error_code: "SELLER_BALANCES_FETCH_FAILED" },
+      {
+        error: balancesError.message,
+        error_code: "SELLER_BALANCES_FETCH_FAILED",
+      },
       { status: 500 },
     );
   }
@@ -371,7 +392,10 @@ export async function GET(request: NextRequest) {
     if (dateOnly) {
       const accountDailyMap =
         accountDailyGrossMap.get(stripeAccountId) ?? new Map<string, number>();
-      accountDailyMap.set(dateOnly, (accountDailyMap.get(dateOnly) ?? 0) + amount);
+      accountDailyMap.set(
+        dateOnly,
+        (accountDailyMap.get(dateOnly) ?? 0) + amount,
+      );
       accountDailyGrossMap.set(stripeAccountId, accountDailyMap);
     }
 
@@ -395,7 +419,8 @@ export async function GET(request: NextRequest) {
       stripe_account_id: stripeAccountId,
       stripe_account_external_id:
         accountInfo?.stripe_account_external_id ?? "acct_unknown",
-      stripe_account_display_name: accountInfo?.display_name ?? "Cuenta sin nombre",
+      stripe_account_display_name:
+        accountInfo?.display_name ?? "Cuenta sin nombre",
       gross_amount_cents: amount,
       stripe_fee_cents: stripeFee,
       net_amount_cents: netAmount,
@@ -411,11 +436,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (selectedAccountId && !accountBreakdownMap.has(selectedAccountId)) {
-    const selectedAccount = accountOptions.find((account) => account.id === selectedAccountId);
+    const selectedAccount = accountOptions.find(
+      (account) => account.id === selectedAccountId,
+    );
     accountBreakdownMap.set(selectedAccountId, {
       stripe_account_id: selectedAccountId,
-      stripe_account_external_id: selectedAccount?.external_id ?? "acct_unknown",
-      stripe_account_display_name: selectedAccount?.display_name ?? "Cuenta sin nombre",
+      stripe_account_external_id:
+        selectedAccount?.external_id ?? "acct_unknown",
+      stripe_account_display_name:
+        selectedAccount?.display_name ?? "Cuenta sin nombre",
       gross_amount_cents: 0,
       stripe_fee_cents: 0,
       net_amount_cents: 0,
@@ -509,9 +538,7 @@ export async function GET(request: NextRequest) {
     sellerMap.set(userId, base);
   }
 
-  const accounts = Array.from(accountBreakdownMap.values()).sort(
-    (a, b) => b.net_amount_cents - a.net_amount_cents,
-  );
+  const accounts = Array.from(accountBreakdownMap.values());
 
   for (const account of accounts) {
     const dailyMap = accountDailyGrossMap.get(account.stripe_account_id);
@@ -526,7 +553,10 @@ export async function GET(request: NextRequest) {
   }
 
   const topSellers: DashboardTopSeller[] = Array.from(sellerMap.values())
-    .filter((seller) => seller.period_transactions_count > 0 || seller.total_earned_cents > 0)
+    .filter(
+      (seller) =>
+        seller.period_transactions_count > 0 || seller.total_earned_cents > 0,
+    )
     .sort((a, b) => {
       if (b.period_commission_cents !== a.period_commission_cents) {
         return b.period_commission_cents - a.period_commission_cents;
