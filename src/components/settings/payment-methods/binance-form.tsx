@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -174,9 +175,12 @@ export function BinanceForm({ existing, onSaved }: BinanceFormProps) {
                       Limpiar
                     </Button>
                   </div>
-                  <img
+                  <Image
                     src={previewUrl}
                     alt="Vista previa de código QR Binance"
+                    width={352}
+                    height={176}
+                    unoptimized
                     className="h-44 w-full rounded-md object-contain bg-muted/30"
                   />
                 </div>

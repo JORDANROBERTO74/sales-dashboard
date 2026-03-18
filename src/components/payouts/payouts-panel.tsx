@@ -38,6 +38,7 @@ type PayoutsPanelProps = {
   accountLabel: string;
 };
 const PAGE_SIZE = 20;
+const EMPTY_SELLERS: Array<{ id: string; full_name: string | null; email: string }> = [];
 
 function parseDateInputString(value: string): Date | undefined {
   if (!value) return undefined;
@@ -138,9 +139,9 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
   const payoutsQuery = useInfinitePayouts(filters, PAGE_SIZE, {
     enabled: canRunPayoutsQuery,
   });
-  const pages = payoutsQuery.data?.pages ?? [];
+  const pages = useMemo(() => payoutsQuery.data?.pages ?? [], [payoutsQuery.data]);
   const rows = pages.flatMap((pageData) => pageData.rows);
-  const sellers = pages[0]?.sellers ?? [];
+  const sellers = useMemo(() => pages[0]?.sellers ?? EMPTY_SELLERS, [pages]);
   const total = pages[0]?.total ?? 0;
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = payoutsQuery;
   const selectedCreateSellerId = canManage ? (createSellerId || undefined) : (sellerId ?? undefined);

@@ -73,10 +73,6 @@ export function ProfileSettingsForm() {
     defaultValues: { email: "" },
   });
 
-  const profileSyncKey = profileQuery.data
-    ? `${profileQuery.data.id}:${profileQuery.data.updated_at ?? ""}`
-    : "";
-
   useEffect(() => {
     if (!profileQuery.data) return;
     const preferences = profileQuery.data.preferences ?? {};
@@ -96,7 +92,7 @@ export function ProfileSettingsForm() {
     emailForm.reset({
       email: profileQuery.data.email ?? "",
     });
-  }, [profileSyncKey]);
+  }, [emailForm, profileForm, profileQuery.data, setTheme]);
 
   const onSubmitProfile = (values: ProfileFormValues) => {
     updateProfile.mutate({

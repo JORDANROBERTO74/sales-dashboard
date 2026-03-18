@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,7 +46,7 @@ const onboardingSchema = z.object({
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>;
 
-interface OnboardingFormProps extends React.ComponentPropsWithoutRef<"div"> { }
+type OnboardingFormProps = React.ComponentPropsWithoutRef<"div">;
 
 export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
   const router = useRouter();
@@ -63,10 +63,11 @@ export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
       theme: "light",
     },
   });
+  const { reset } = form;
 
   useEffect(() => {
     if (profileQuery.data) {
-      form.reset({
+      reset({
         fullName: profileQuery.data.full_name ?? "",
         phone: profileQuery.data.phone ?? "",
         language: profileQuery.data.preferences?.language ?? "es",
@@ -77,7 +78,7 @@ export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
         router.push("/admin/dashboard");
       }
     }
-  }, [profileQuery.data, form.reset, router]);
+  }, [profileQuery.data, reset, router]);
 
   const onSubmit = (values: OnboardingFormValues) => {
     updateProfile.mutate(
