@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
-import type { StripeTransactionRow, TransactionAssignment } from "@/types/transactions";
+import type { SellerOption, StripeTransactionRow, TransactionAssignment } from "@/types/transactions";
 
 type AssignmentUserRaw =
   | {
@@ -183,9 +183,32 @@ export async function GET(
     .eq("id", transactionId)
     .maybeSingle();
 
+  const { data: sellersData, error: sellersError } = await supabase
+    .from("users")
+    .select(
+      `
+      id,
+      full_name,
+      email,
+      commission_rate,
+      roles:role_id!inner (
+        role_name
+      )
+    `
+    )
+    .order("full_name", { ascending: true, nullsFirst: false })
+    .order("email", { ascending: true });
+
   if (error) {
     return NextResponse.json(
       { error: error.message, error_code: "TRANSACTION_FETCH_FAILED" },
+      { status: 500 }
+    );
+  }
+
+  if (sellersError) {
+    return NextResponse.json(
+      { error: sellersError.message, error_code: "SELLERS_FETCH_FAILED" },
       { status: 500 }
     );
   }
@@ -222,10 +245,21 @@ export async function GET(
     created_at: data.created_at,
     assignment: mapAssignment(data.transaction_assignments),
   };
+  const sellers: SellerOption[] = (sellersData ?? []).map((seller) => ({
+    id: seller.id as string,
+    full_name: (seller.full_name as string | null) ?? null,
+    email: seller.email as string,
+    commission_rate: Number(seller.commission_rate ?? 0),
+    role_name:
+      getRoleName(
+        (seller as { roles?: { role_name?: string }[] | { role_name?: string } | null }).roles
+      ),
+  }));
 
   return NextResponse.json(
     {
       row,
+      sellers,
       canViewCustomerData,
     },
     { status: 200 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
+import { isBeforeAssignmentAccessDate } from "@/lib/transactions/assignment-access";
 
 const assignSchema = z.object({
   sellerUserId: z.string().uuid().optional(),
@@ -57,7 +58,7 @@ export async function POST(
 
   const { data: transaction, error: txError } = await supabase
     .from("stripe_transactions")
-    .select("id")
+    .select("id,stripe_created_at,created_at")
     .eq("id", transactionId)
     .maybeSingle();
 
@@ -71,6 +72,20 @@ export async function POST(
     return NextResponse.json(
       { error: "Transacción no encontrada", error_code: "TRANSACTION_NOT_FOUND" },
       { status: 404 }
+    );
+  }
+  if (
+    isBeforeAssignmentAccessDate(
+      (transaction as { stripe_created_at?: string | null }).stripe_created_at,
+      (transaction as { created_at?: string | null }).created_at
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error: "Solo se permite asignar/desasignar transacciones desde el 18/03/2026.",
+        error_code: "ASSIGNMENT_DATE_LOCKED",
+      },
+      { status: 403 }
     );
   }
 
@@ -215,7 +230,7 @@ export async function DELETE(
 
   const { data: transaction, error: txError } = await supabase
     .from("stripe_transactions")
-    .select("id")
+    .select("id,stripe_created_at,created_at")
     .eq("id", transactionId)
     .maybeSingle();
 
@@ -229,6 +244,20 @@ export async function DELETE(
     return NextResponse.json(
       { error: "Transacción no encontrada", error_code: "TRANSACTION_NOT_FOUND" },
       { status: 404 }
+    );
+  }
+  if (
+    isBeforeAssignmentAccessDate(
+      (transaction as { stripe_created_at?: string | null }).stripe_created_at,
+      (transaction as { created_at?: string | null }).created_at
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error: "Solo se permite asignar/desasignar transacciones desde el 18/03/2026.",
+        error_code: "ASSIGNMENT_DATE_LOCKED",
+      },
+      { status: 403 }
     );
   }
 

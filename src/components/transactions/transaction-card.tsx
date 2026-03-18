@@ -26,6 +26,7 @@ import {
   useAssignTransaction,
   useUnassignTransaction,
 } from "@/hooks/transactions/use-transactions";
+import { isBeforeAssignmentAccessDate } from "@/lib/transactions/assignment-access";
 import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
 
 type TransactionCardProps = {
@@ -79,13 +80,17 @@ export function TransactionCard({
     if (Number.isNaN(availableAt.getTime())) return false;
     return availableAt.getTime() <= Date.now();
   }, [row.funds_available_at]);
+  const isBeforeAccessDate = useMemo(() => {
+    return isBeforeAssignmentAccessDate(row.stripe_created_at, row.created_at);
+  }, [row.created_at, row.stripe_created_at]);
 
   const handleUnassign = () => {
-    if (!row.assignment) return;
+    if (!row.assignment || isBeforeAccessDate) return;
     unassignMutation.mutate({ transactionId: row.id });
   };
 
   const handleAssign = () => {
+    if (isBeforeAccessDate) return;
     if (isSeller) {
       if (!currentUserId) return;
       assignMutation.mutate({
@@ -183,7 +188,7 @@ export function TransactionCard({
           row.assignment ? (
             !canSellerOperate || (isSeller && row.assignment.user_id !== currentUserId) ? (
               <Button size="sm" className="w-full" variant="outline" disabled>
-                Asignada
+                {isBeforeAccessDate ? "No accesible" : "Asignada"}
               </Button>
             ) : (
               <AlertDialog>
@@ -192,7 +197,7 @@ export function TransactionCard({
                     size="sm"
                     className="w-full"
                     variant="outline"
-                    disabled={isRowBusy || !canSellerOperate}
+                    disabled={isRowBusy || !canSellerOperate || isBeforeAccessDate}
                     onClick={stopCardNavigation}
                   >
                     {isUnassigning ? (
@@ -201,7 +206,7 @@ export function TransactionCard({
                         Desasignando...
                       </span>
                     ) : (
-                      "Desasignar"
+                      isBeforeAccessDate ? "No accesible" : "Desasignar"
                     )}
                   </Button>
                 </AlertDialogTrigger>
@@ -234,7 +239,7 @@ export function TransactionCard({
               size="sm"
               className="w-full"
               variant="outline"
-              disabled={isRowBusy || !canSellerOperate}
+              disabled={isRowBusy || !canSellerOperate || isBeforeAccessDate}
               onClick={(event) => {
                 stopCardNavigation(event);
                 handleAssign();
@@ -246,7 +251,7 @@ export function TransactionCard({
                   Asignando...
                 </span>
               ) : (
-                "Asignar"
+                isBeforeAccessDate ? "No accesible" : "Asignar"
               )}
             </Button>
           )

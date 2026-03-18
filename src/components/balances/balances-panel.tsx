@@ -271,38 +271,33 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
           ) : (
             <>
               <div className="space-y-3">
-                <Card>
-                  <CardHeader className="space-y-1">
-                    <CardDescription>Saldo disponible para retiro</CardDescription>
-                    <CardTitle className="text-2xl">
-                      {formatUsdFromCents(data.kpis.available_for_payout_cents)}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground">
-                      La información principal para saber cuánto se puede retirar ahora.
-                    </p>
-                  </CardContent>
-                </Card>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-md border p-4 space-y-1">
-                    <p className="text-sm text-muted-foreground">Saldo entrante</p>
-                    <p className="text-lg font-semibold">
-                      {formatUsdFromCents(data.kpis.pending_earned_cents)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Fondos que aun se espera que se acrediten al saldo de Stripe.
-                    </p>
-                  </div>
-                  <div className="rounded-md border p-4 space-y-1">
-                    <p className="text-sm text-muted-foreground">Saldo disponible</p>
-                    <p className="text-lg font-semibold">
-                      {formatUsdFromCents(data.kpis.available_earned_cents)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Fondos ya acreditados en el saldo de Stripe.
-                    </p>
-                  </div>
+                  <Card>
+                    <CardHeader className="space-y-1">
+                      <CardDescription>Saldo disponible para retiro</CardDescription>
+                      <CardTitle className="text-2xl">
+                        {formatUsdFromCents(data.kpis.available_for_payout_cents)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-xs text-muted-foreground">
+                        La información principal para saber cuánto se puede retirar ahora.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="space-y-1">
+                      <CardDescription>Saldo entrante</CardDescription>
+                      <CardTitle className="text-2xl">
+                        {formatUsdFromCents(data.kpis.pending_earned_cents)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-xs text-muted-foreground">
+                        Fondos que aun se espera que se acrediten al saldo de Stripe.
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 <Card>

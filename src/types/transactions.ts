@@ -76,5 +76,6 @@ export type TransactionsListResponse = {
 
 export type TransactionDetailResponse = {
   row: StripeTransactionRow;
+  sellers: SellerOption[];
   canViewCustomerData: boolean;
 };

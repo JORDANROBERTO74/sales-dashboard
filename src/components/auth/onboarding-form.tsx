@@ -39,7 +39,11 @@ const onboardingSchema = z.object({
     .string()
     .min(3, "El nombre es demasiado corto")
     .max(200, "Máximo 200 caracteres"),
-  phone: z.string().max(30, "Máximo 30 caracteres").optional(),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "El teléfono es obligatorio")
+    .max(30, "Máximo 30 caracteres"),
   language: z.enum(["es", "en"]),
   theme: z.enum(["light", "dark"]),
 });
@@ -175,12 +179,13 @@ export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <Label htmlFor="phone">Teléfono (opcional)</Label>
+                    <Label htmlFor="phone">Teléfono</Label>
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="+59171234567"
                       autoComplete="tel"
+                      required
                       {...field}
                     />
                     {fieldState.invalid && (
