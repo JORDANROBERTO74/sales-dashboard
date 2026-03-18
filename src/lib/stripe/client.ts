@@ -18,7 +18,9 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function buildStripeAccountConfig(name: StripeAccountName): StripeAccountConfig {
+function buildStripeAccountConfig(
+  name: StripeAccountName,
+): StripeAccountConfig {
   const externalId = requiredEnv(`STRIPE_ACCOUNT_${name}_EXTERNAL_ID`);
   const secretKey = requiredEnv(`STRIPE_ACCOUNT_${name}_SECRET_KEY`);
   const webhookSecret = requiredEnv(`STRIPE_ACCOUNT_${name}_WEBHOOK_SECRET`);
@@ -29,7 +31,7 @@ function buildStripeAccountConfig(name: StripeAccountName): StripeAccountConfig 
     secretKey,
     webhookSecret,
     client: new Stripe(secretKey, {
-      apiVersion: "2026-01-28.clover",
+      apiVersion: "2026-02-25.clover",
       typescript: true,
     }),
   };
@@ -45,27 +47,34 @@ export function getStripeAccounts(): StripeAccountConfig[] {
 }
 
 export function getStripeClientsByAccount(): Record<string, Stripe> {
-  return Object.fromEntries(stripeAccounts.map((account) => [account.externalId, account.client]));
+  return Object.fromEntries(
+    stripeAccounts.map((account) => [account.externalId, account.client]),
+  );
 }
 
 export function getStripeAccountByExternalId(
-  externalId: string
+  externalId: string,
 ): StripeAccountConfig | null {
-  return stripeAccounts.find((account) => account.externalId === externalId) ?? null;
+  return (
+    stripeAccounts.find((account) => account.externalId === externalId) ?? null
+  );
 }
 
 export function getStripeClientByExternalId(externalId: string): Stripe {
   const account = getStripeAccountByExternalId(externalId);
   if (!account) {
-    throw new Error(`Stripe account not configured for external id: ${externalId}`);
+    throw new Error(
+      `Stripe account not configured for external id: ${externalId}`,
+    );
   }
   return account.client;
 }
 
 export function getStripeAccountByWebhookSecret(
-  webhookSecret: string
+  webhookSecret: string,
 ): StripeAccountConfig | null {
   return (
-    stripeAccounts.find((account) => account.webhookSecret === webhookSecret) ?? null
+    stripeAccounts.find((account) => account.webhookSecret === webhookSecret) ??
+    null
   );
 }
