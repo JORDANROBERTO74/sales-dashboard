@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Field, FieldError } from "@/components/ui/field";
 import Link from "next/link";
@@ -147,12 +148,14 @@ export function LoginForm({
                           ¿Olvidaste tu contraseña?
                         </Link>
                       </div>
-                      <Input
+                      <PasswordInput
                         {...field}
                         id="password"
-                        type="password"
                         placeholder="••••••••"
                         className="h-11"
+                        autoComplete="current-password"
+                        showLabel="Mostrar contraseña de acceso"
+                        hideLabel="Ocultar contraseña de acceso"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && (

@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Field, FieldError } from "@/components/ui/field";
 import { useUpdatePassword } from "@/hooks/auth/use-update-password";
@@ -131,12 +131,14 @@ export function UpdatePasswordForm({
                   <Field data-invalid={fieldState.invalid}>
                     <div className="grid gap-2">
                       <Label htmlFor="password">Nueva contraseña</Label>
-                      <Input
+                      <PasswordInput
                         {...field}
                         id="password"
-                        type="password"
                         placeholder="••••••••"
                         className="h-11"
+                        autoComplete="new-password"
+                        showLabel="Mostrar nueva contraseña"
+                        hideLabel="Ocultar nueva contraseña"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && (
