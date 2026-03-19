@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Field, FieldError } from "@/components/ui/field";
 import Link from "next/link";
@@ -121,12 +122,14 @@ export function SignUpForm({
                   <Field data-invalid={fieldState.invalid}>
                     <div className="grid gap-2">
                       <Label htmlFor="password">Contraseña</Label>
-                      <Input
+                      <PasswordInput
                         {...field}
                         id="password"
-                        type="password"
                         placeholder="••••••••"
                         className="h-11"
+                        autoComplete="new-password"
+                        showLabel="Mostrar contraseña principal"
+                        hideLabel="Ocultar contraseña principal"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && (
@@ -145,12 +148,14 @@ export function SignUpForm({
                       <Label htmlFor="repeat-password">
                         Repetir Contraseña
                       </Label>
-                      <Input
+                      <PasswordInput
                         {...field}
                         id="repeat-password"
-                        type="password"
                         placeholder="••••••••"
                         className="h-11"
+                        autoComplete="new-password"
+                        showLabel="Mostrar confirmación de contraseña"
+                        hideLabel="Ocultar confirmación de contraseña"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && (
