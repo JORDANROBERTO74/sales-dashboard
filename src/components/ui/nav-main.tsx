@@ -9,6 +9,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { getBestActiveRoute, isRouteActive } from "@/lib/navigation/route-active"
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -46,9 +47,15 @@ export function NavMain({
             <SidebarMenu>
                 {items.map((item) => {
                     const hasSubItems = (item.items?.length ?? 0) > 0
-                    const hasActiveSubItem =
-                        item.items?.some((subItem) => pathname === subItem.url) ?? false
-                    const isItemActive = pathname === item.url
+                    const activeSubItemUrl = item.items
+                        ? getBestActiveRoute(
+                            pathname,
+                            item.items.map((subItem) => subItem.url),
+                        )
+                        : undefined
+                    const hasActiveSubItem = Boolean(activeSubItemUrl)
+                    const isItemActive = isRouteActive(pathname, item.url)
+                    const isGroupActive = isItemActive || hasActiveSubItem
                     const firstSubItemUrl = item.items?.[0]?.url
                     const shouldNavigateToFirstSubItem =
                         state === "collapsed" && Boolean(firstSubItemUrl)
@@ -74,7 +81,8 @@ export function NavMain({
                         <Collapsible
                             key={item.title}
                             asChild
-                            defaultOpen={item.isActive || hasActiveSubItem}
+                            defaultOpen={item.isActive || isGroupActive}
+                            open={isGroupActive ? true : undefined}
                             className="group/collapsible"
                         >
                             <SidebarMenuItem>
@@ -82,7 +90,7 @@ export function NavMain({
                                     <SidebarMenuButton
                                         asChild
                                         tooltip={item.title}
-                                        isActive={hasActiveSubItem}
+                                        isActive={isGroupActive}
                                     >
                                         <Link href={firstSubItemUrl!}>
                                             {item.icon && <item.icon />}
@@ -94,7 +102,7 @@ export function NavMain({
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton
                                             tooltip={item.title}
-                                            isActive={hasActiveSubItem}
+                                            isActive={isGroupActive}
                                         >
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
@@ -105,7 +113,7 @@ export function NavMain({
                                 <CollapsibleContent>
                                     <SidebarMenuSub>
                                         {item.items?.map((subItem) => {
-                                            const isSubItemActive = pathname === subItem.url
+                                            const isSubItemActive = subItem.url === activeSubItemUrl
 
                                             return (
                                                 <SidebarMenuSubItem key={subItem.key}>
