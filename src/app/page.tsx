@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import {
+  Activity,
   ArrowRight,
-  Boxes,
+  BanknoteArrowDown,
+  CircleDollarSign,
+  HandCoins,
   LayoutDashboard,
   Lock,
-  Puzzle,
-  Route,
+  RefreshCcw,
   ShieldCheck,
-  Sparkles,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,64 +25,90 @@ import {
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useUser } from "@/hooks/auth/use-user";
 
 const stackItems = [
-  { label: "Plataforma", value: "Aplicación web modular" },
-  { label: "Interfaz", value: "Panel responsivo para operación diaria" },
-  { label: "Datos", value: "Sincronización de cobros y ventas" },
-  { label: "Validación", value: "Formularios con reglas de negocio" },
+  { label: "Origen de datos", value: "Transacciones de Stripe centralizadas" },
+  { label: "Asignaciones", value: "Ventas reclamadas y trazables por seller" },
+  { label: "Comisiones", value: "Calculo por transaccion y tasa de usuario" },
+  { label: "Retiros", value: "Control de saldo disponible y payouts" },
 ];
 
-const architectureItems = [
+const capabilityItems = [
   {
-    title: "App Router por dominio",
+    title: "Transacciones en tiempo real",
     description:
-      "Rutas separadas en ecommerce, admin, auth y settings para facilitar escalabilidad.",
-    icon: Route,
+      "Consolida cobros de Stripe por cuenta, estado y fecha para operar con datos actualizados.",
+    icon: Activity,
   },
   {
-    title: "Auth centralizado",
+    title: "Asignacion de ventas",
     description:
-      "La plataforma maneja sesión y usuarios, con middleware para proteger áreas privadas.",
-    icon: ShieldCheck,
+      "Asigna cada transaccion a un seller y mantiene historial claro de ownership comercial.",
+    icon: Users,
   },
   {
-    title: "UI reutilizable",
+    title: "Comisiones auditables",
     description:
-      "Componentes base en UI y wrappers de negocio para mantener consistencia visual.",
-    icon: Puzzle,
+      "Calcula neto, comision y estado por operacion para seguimiento financiero sin friccion.",
+    icon: HandCoins,
   },
   {
-    title: "Datos preparados para evolución",
+    title: "Saldos y retiros",
     description:
-      "Capas `hooks` y `lib` listas para migrar de mock data a integración real de pagos.",
-    icon: Boxes,
+      "Visualiza disponible para payout, pendientes y retiros completados por seller.",
+    icon: Wallet,
   },
 ];
 
-const moduleItems = [
+const flowItems = [
   {
-    name: "Ecommerce",
-    detail: "Catálogo, producto, carrito, checkout, categorías y ofertas.",
-  },
-  {
-    name: "Admin",
+    name: "1. Ingesta de cobros",
     detail:
-      "Dashboard, pedidos, productos, inventario y configuración operativa.",
+      "Los eventos de Stripe alimentan la capa de transacciones con monto, fee, neto y metadata.",
+    icon: CircleDollarSign,
   },
   {
-    name: "Auth",
+    name: "2. Asignacion comercial",
     detail:
-      "Login, registro, recuperación, actualización y confirmación de email.",
+      "Cada venta se asigna al seller correspondiente para gobernar ownership y comision.",
+    icon: Users,
   },
   {
-    name: "Settings",
-    detail: "Gestión de equipo y métodos de pago para operaciones internas.",
+    name: "3. Comision y balance",
+    detail:
+      "El sistema consolida comisiones ganadas, saldos pendientes y disponible para retiro.",
+    icon: RefreshCcw,
+  },
+  {
+    name: "4. Ejecucion de payouts",
+    detail:
+      "Admin gestiona retiros con trazabilidad de estado y evidencia operativa por transaccion.",
+    icon: BanknoteArrowDown,
+  },
+];
+
+const roleItems = [
+  {
+    role: "Admin / Owner",
+    detail:
+      "Supervision global de transacciones, asignaciones, comisiones y retiros.",
+  },
+  {
+    role: "Seller",
+    detail:
+      "Visibilidad de ventas asignadas, comision acumulada y saldo disponible para payout.",
+  },
+  {
+    role: "Analyst / Viewer",
+    detail:
+      "Monitoreo de KPIs operativos sin exponer acciones criticas de administracion.",
   },
 ];
 
 export default function HomePage() {
   const router = useRouter();
+  const { data: userProfile } = useUser();
 
   useEffect(() => {
     // Redirige tokens de invitacion/recuperacion a sus flujos dedicados.
@@ -120,24 +149,19 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/40">
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-16 md:py-24">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary" className="rounded-full px-3 py-1">
+          <Badge variant="secondary" className="rounded-full px-3">
             J-Node Sales
-          </Badge>
-          <Badge variant="outline" className="rounded-full px-3 py-1">
-            Administrador de cobros y ventas
           </Badge>
         </div>
 
         <div className="space-y-4">
           <h1 className="max-w-4xl text-4xl font-bold tracking-tight md:text-6xl">
-            Plataforma de ventas preparada para escalar en ecommerce y operación
-            interna.
+            Gestiona Stripe, comisiones y retiros en un solo lugar.
           </h1>
           <p className="max-w-3xl text-lg text-muted-foreground md:text-xl">
-            Este proyecto combina experiencia de usuario, administración y
-            seguridad en una sola arquitectura moderna. Está diseñado para
-            evolucionar de entorno mock a integraciones reales sin romper la
-            estructura base.
+            J-Node Sales esta disenada para operaciones comerciales reales:
+            asignacion de transacciones, calculo de comisiones por seller,
+            control de balances y ejecucion de payouts con trazabilidad.
           </p>
         </div>
 
@@ -148,12 +172,14 @@ export default function HomePage() {
               <ArrowRight />
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/auth/login">
-              Ir a autenticación
-              <Lock />
-            </Link>
-          </Button>
+          {!userProfile && (
+            <Button asChild variant="outline" size="lg">
+              <Link href="/auth/login">
+                Iniciar sesion
+                <Lock />
+              </Link>
+            </Button>
+          )}
         </div>
       </section>
 
@@ -171,10 +197,10 @@ export default function HomePage() {
       <section className="mx-auto w-full max-w-6xl px-6 py-8">
         <div className="mb-6 flex items-center gap-2">
           <LayoutDashboard className="size-5 text-primary" />
-          <h2 className="text-2xl font-semibold">Arquitectura del proyecto</h2>
+          <h2 className="text-2xl font-semibold">Capacidades clave</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {architectureItems.map((item) => (
+          {capabilityItems.map((item) => (
             <Card key={item.title}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -190,15 +216,35 @@ export default function HomePage() {
 
       <section className="mx-auto w-full max-w-6xl px-6 py-8">
         <div className="mb-6 flex items-center gap-2">
-          <Sparkles className="size-5 text-primary" />
-          <h2 className="text-2xl font-semibold">Módulos principales</h2>
+          <ShieldCheck className="size-5 text-primary" />
+          <h2 className="text-2xl font-semibold">Flujo operativo</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {moduleItems.map((module) => (
-            <Card key={module.name}>
+          {flowItems.map((flow) => (
+            <Card key={flow.name}>
               <CardHeader>
-                <CardTitle>{module.name}</CardTitle>
-                <CardDescription>{module.detail}</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <flow.icon className="size-5 text-primary" />
+                  {flow.name}
+                </CardTitle>
+                <CardDescription>{flow.detail}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-6xl px-6 py-8">
+        <div className="mb-6 flex items-center gap-2">
+          <Users className="size-5 text-primary" />
+          <h2 className="text-2xl font-semibold">Valor por rol</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {roleItems.map((item) => (
+            <Card key={item.role}>
+              <CardHeader>
+                <CardTitle>{item.role}</CardTitle>
+                <CardDescription>{item.detail}</CardDescription>
               </CardHeader>
             </Card>
           ))}
@@ -208,22 +254,24 @@ export default function HomePage() {
       <section className="mx-auto w-full max-w-6xl px-6 py-12">
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
-            <CardTitle>Siguiente paso recomendado</CardTitle>
+            <CardTitle>Comienza la operacion</CardTitle>
             <CardDescription>
-              Integrar la capa de pagos real y mover progresivamente la data
-              mock a servicios productivos, manteniendo el mismo contrato de
-              hooks y componentes.
+              Accede al dashboard para monitorear KPIs y gestiona el ciclo
+              completo: transaccion, asignacion, comision y retiro.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/admin/settings">
-                Gestionar settings
+              <Link href="/admin/transactions">
+                Ver transacciones
                 <ArrowRight />
               </Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/admin/orders">Explorar operaciones</Link>
+              <Link href="/admin/balances/payouts">Gestionar retiros</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/admin/settings">Configurar equipo y tasas</Link>
             </Button>
           </CardContent>
         </Card>
