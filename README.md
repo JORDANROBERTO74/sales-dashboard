@@ -1,380 +1,338 @@
-# J-Node Sales - Roadmap hasta Produccion
+# J-Node Sales
 
-Este documento define el plan de ejecucion del proyecto desde el estado actual hasta un go-live estable en produccion.  
-Incluye inventario tecnico real, TODOs por fases, dependencias entre tareas y Definition of Done.
+Plataforma administrativa de cobros y ventas para J-Node, construida con Next.js, Supabase y Stripe (multi-cuenta).
 
-## 1) Estado actual del proyecto
+## Tabla de contenido
 
-### Backend y Base de Datos (Supabase)
+- [Vision general](#vision-general)
+- [Arquitectura](#arquitectura)
+- [Stack tecnologico](#stack-tecnologico)
+- [Mapa funcional del proyecto](#mapa-funcional-del-proyecto)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Requisitos previos](#requisitos-previos)
+- [Onboarding local](#onboarding-local)
+- [Variables de entorno](#variables-de-entorno)
+- [Scripts disponibles](#scripts-disponibles)
+- [Flujos criticos del sistema](#flujos-criticos-del-sistema)
+- [Permisos y seguridad](#permisos-y-seguridad)
+- [Contribucion](#contribucion)
+- [Troubleshooting](#troubleshooting)
+- [Estado actual y limitaciones](#estado-actual-y-limitaciones)
 
-- Esquema principal en `supabase/schema.sql`.
-- Tablas core detectadas:
-  - `roles`
-  - `users`
-  - `invitations`
-  - `stripe_transactions`
-  - `transaction_assignments`
-  - `seller_payment_methods`
-  - `seller_payouts`
-  - `seller_balance_summary`
-  - `audit_log` (+ `audit_log_default`)
-- El esquema contiene funciones de negocio para:
-  - onboarding/invitaciones
-  - control de privilegios/RBAC
-  - asignaciones y comisiones
-  - retiros y validacion de balance
-  - auditoria y mantenimiento programado
-- Hay RLS activo y forzado en tablas sensibles.
+## Vision general
 
-### Backend HTTP (Next API routes)
+J-Node Sales centraliza operaciones de:
 
-Rutas existentes en `src/app/api`:
+- autenticacion y acceso por roles
+- visualizacion de transacciones y dashboard
+- asignacion de transacciones a sellers
+- gestion de saldos y payouts
+- configuracion de perfil, equipo y metodos de pago
 
-- `src/app/api/auth/confirm/route.ts`
-- `src/app/api/webhooks/stripe/route.ts`
-- `src/app/api/stripe/sync/route.ts`
+Este README esta orientado a colaboradores externos que necesitan entender el sistema rapidamente y empezar a contribuir con bajo riesgo.
 
-Estado:
+## Arquitectura
 
-- Integracion de cobros ya iniciada (webhook + sync manual).
-- Confirmacion de email con Supabase ya funcional.
-- No existen endpoints de health/readiness todavia.
+```mermaid
+flowchart LR
+  user["DeveloperUser"] --> app["NextAppRouter"]
+  app --> api["ApiRoutes"]
+  api --> supabase["SupabaseAuthDBStorage"]
+  api --> stripe["StripeAccountsAB"]
+  stripe --> webhook["StripeWebhookSync"]
+  webhook --> api
+  supabase --> app
+```
 
-### Frontend App Router
+Resumen de capas:
 
-Paginas detectadas en `src/app`:
+- `src/app`: UI (App Router) y API routes.
+- `src/lib`: integraciones (Supabase, Stripe), auth, permisos y utilidades de dominio.
+- `src/hooks`: lectura/mutacion de datos con React Query.
+- `supabase/schema.sql`: modelo de datos, funciones SQL, politicas y RLS.
 
-- Publica: `/` en `src/app/page.tsx`
-- Auth cliente: `/auth/*`
-- Auth admin: `/admin/auth/*`
-- Admin: solo `/admin/dashboard` en `src/app/admin/dashboard/page.tsx`
+## Stack tecnologico
 
-Rutas referenciadas en navegacion pero no implementadas en `src/app`:
+- **Framework**: Next.js 15 (App Router)
+- **UI**: React 18 + Tailwind CSS + Radix/shadcn
+- **Datos y auth**: Supabase SSR + Supabase JS
+- **Pagos**: Stripe (cuentas A/B)
+- **Estado remoto**: TanStack React Query
+- **Validacion**: Zod + React Hook Form
+- **Tipado**: TypeScript (modo strict)
 
-- `/admin/configuration`
-- `/admin/orders`
-- `/settings/*`
+## Mapa funcional del proyecto
 
-### Layout y UI
+### Rutas de pagina (`src/app`)
 
-- Layout condicional: `src/components/conditional-layout.tsx`
-- Sidebar admin: `src/components/ui/app-sidebar.tsx`
-- Header/Breadcrumb: `src/components/ui/app-header.tsx`
-- Sistema UI base (shadcn/radix): `src/components/ui/*`
+**Publicas**
 
-Estado:
+- `/`
+- `/payment-methods`
+- `/payment-methods/airtm`
+- `/payment-methods/binance`
+- `/payment-methods/banco-qr`
 
-- Shell admin responsive existe.
-- Dashboard y modulos de negocio aun en estado inicial.
+**Auth**
 
-### Hooks y estado de datos
+- `/auth/login`
+- `/auth/forgot-password`
+- `/auth/reset-password`
+- `/auth/update-password`
+- `/auth/invite-password`
+- `/auth/sign-up-success`
+- `/auth/error`
+- `/auth/unauthorized`
 
-Hooks actuales en `src/hooks`:
+**Admin**
 
-- Auth:
-  - `src/hooks/auth/use-user.ts`
-  - `src/hooks/auth/use-sign-in.ts`
-  - `src/hooks/auth/use-sign-up.ts`
-  - `src/hooks/auth/use-sign-out.ts`
-  - `src/hooks/auth/use-forgot-password.ts`
-  - `src/hooks/auth/use-update-password.ts`
-  - `src/hooks/auth/use-update-profile.ts`
-- Permisos:
-  - `src/hooks/permission/use-permissions.ts`
-- UI:
-  - `src/hooks/use-mobile.ts`
-  - `src/hooks/use-toast.ts`
+- `/admin/onboarding`
+- `/admin/dashboard`
+- `/admin/transactions`
+- `/admin/transactions/jnode`
+- `/admin/transactions/jnode/[id]`
+- `/admin/transactions/vascruz`
+- `/admin/transactions/vascruz/[id]`
+- `/admin/balances`
+- `/admin/balances/payouts`
+- `/admin/payouts/[id]`
+- `/admin/settings`
+- `/admin/settings/profile`
+- `/admin/settings/team`
+- `/admin/settings/team/[id]`
+- `/admin/settings/payment-methods`
 
-Estado:
+### API routes (`src/app/api`)
 
-- React Query esta configurado en `src/app/providers.tsx`.
-- Falta una capa de hooks por dominio (transactions, assignments, payouts, dashboard, team, settings).
+**Auth / Stripe**
 
-### Seguridad y operacion (estado actual)
+- `GET /api/auth/confirm`
+- `POST /api/stripe/sync`
+- `POST /api/webhooks/stripe`
 
-- Cliente admin de Supabase para procesos internos en `src/lib/supabase/admin.ts`.
-- Middleware de auth/rutas protegido en `src/middleware.ts` y `src/lib/supabase/middleware.ts`.
-- Falta pipeline CI/CD, tests automatizados y observabilidad completa.
+**Admin**
 
-## 2) Objetivo de producto (MVP operativo)
+- `GET /api/admin/dashboard`
+- `GET /api/admin/balances`
+- `GET /api/admin/transactions`
+- `GET /api/admin/transactions/[id]`
+- `POST /api/admin/transactions/[id]/assign`
+- `DELETE /api/admin/transactions/[id]/assign`
+- `GET /api/admin/payouts`
+- `POST /api/admin/payouts`
+- `GET /api/admin/payouts/[id]`
+- `PATCH /api/admin/payouts/[id]`
+- `DELETE /api/admin/payouts/[id]`
+- `GET /api/admin/payouts/payment-methods`
 
-Entregar un panel administrativo de cobros y ventas para J-Node con:
+**Settings**
 
-1. autenticacion y RBAC por rol
-2. dashboard con KPIs reales
-3. asignacion de transacciones a sellers
-4. control de comisiones y saldo disponible
-5. flujo de retiros con validaciones
-6. auditoria y operacion segura para produccion
+- `GET/PATCH /api/settings/profile`
+- `PATCH /api/settings/profile/email`
+- `GET/POST /api/settings/payment-methods`
+- `PATCH/DELETE /api/settings/payment-methods/[id]`
+- `POST /api/settings/payment-methods/upload-qr`
+- `GET /api/settings/team/roles`
+- `GET /api/settings/team/members`
+- `GET/PATCH /api/settings/team/members/[id]`
+- `GET /api/settings/team/invitations`
+- `POST /api/settings/team/invite`
+- `POST /api/settings/team/invitations/[id]/revoke`
 
-## 3) Dependencias entre fases
+### Modulos clave (`src/lib` y `src/hooks`)
 
-1. Fase 0 (seguridad/base) bloquea todo.
-2. Fase 1 (contrato datos/backend) desbloquea hooks (Fase 2).
-3. Fase 2 desbloquea modulos y UI (Fase 3-4).
-4. Fase 5-6 validan calidad/operacion antes de go-live.
-5. Fase 7 solo inicia cuando Fase 0-6 estan en verde.
+**Integracion y seguridad (`src/lib`)**
 
-## 4) Roadmap por fases con TODO list
+- Supabase: `src/lib/supabase/{client,server,admin,middleware}.ts`
+- Stripe: `src/lib/stripe/{client,transactions}.ts`
+- Auth y permisos: `src/lib/auth/*`
+- Cifrado metodos de pago: `src/lib/crypto.ts`, `src/lib/payment-methods/crypto.ts`
+- Navegacion por rol: `src/lib/navigation/admin-nav.ts`
 
-## Fase 0 - Seguridad y base operativa (bloqueante)
+**Data layer frontend (`src/hooks`)**
 
-**Objetivo:** cerrar riesgos de seguridad y establecer una base de entrega confiable.
+- `src/hooks/dashboard/use-dashboard.ts`
+- `src/hooks/transactions/use-transactions.ts`
+- `src/hooks/balances/use-balances.ts`
+- `src/hooks/payouts/use-payouts.ts`
+- `src/hooks/settings/use-profile-settings.ts`
+- `src/hooks/settings/use-payment-methods.ts`
+- `src/hooks/settings/use-team-management.ts`
+- `src/hooks/auth/*`
 
-### TODO
+## Estructura del repositorio
 
-- [ ] Rotar secretos de infraestructura/cobros/cifrado y reemitir credenciales por entorno.
-- [ ] Crear matriz de secretos por ambiente (`dev`, `staging`, `prod`) y responsables.
-- [ ] Fijar versiones de dependencias criticas en `package.json` (evitar `latest`).
-- [ ] Definir politicas de `.env` y onboarding de desarrolladores.
-- [ ] Configurar escaneo de secretos y vulnerabilidades en CI.
+```text
+jnode-sales/
+  src/
+    app/                  # Paginas y API routes (Next App Router)
+    components/           # UI compartida y componentes de dominio
+    hooks/                # Queries/mutations y estado de datos
+    lib/                  # Auth, permisos, Stripe, Supabase, utilidades
+    middleware.ts         # Proteccion de rutas y redirects por sesion/rol
+  public/                 # Assets estaticos
+  supabase/
+    schema.sql            # Esquema SQL, funciones y politicas RLS
+  docs/                   # Documentacion complementaria
+  .env.example            # Plantilla de variables de entorno
+```
 
-### Definition of Done
+## Requisitos previos
 
-- No hay secretos expuestos en repositorio ni artefactos compartidos.
-- Dependencias criticas quedan versionadas de forma deterministica.
-- Existen validaciones automaticas minimas de seguridad en cada PR.
+- Node.js 20+ (recomendado LTS)
+- npm
+- Proyecto Supabase con credenciales validas
+- Credenciales Stripe para cuentas configuradas
+
+## Onboarding local
+
+1. Clonar repositorio.
+2. Instalar dependencias:
+
+```bash
+npm install
+```
+
+3. Crear entorno local desde plantilla:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+4. Completar variables en `.env.local`.
+5. Ejecutar aplicacion:
+
+```bash
+npm run dev
+```
+
+6. Abrir `http://localhost:3000`.
+
+7. Validacion minima recomendada:
+
+```bash
+npm run lint
+npm run build
+```
+
+## Variables de entorno
+
+Base oficial: `.env.example`.
+
+### Requeridas para funcionamiento
+
+**Supabase**
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+**Cifrado**
+
+- `PAYMENT_ENCRYPTION_KEY` (64 caracteres hex, AES-256-GCM)
+
+**Stripe (multi-cuenta)**
+
+- `STRIPE_ACCOUNT_A_EXTERNAL_ID`
+- `STRIPE_ACCOUNT_A_SECRET_KEY`
+- `STRIPE_ACCOUNT_A_WEBHOOK_SECRET`
+- `STRIPE_ACCOUNT_B_EXTERNAL_ID`
+- `STRIPE_ACCOUNT_B_SECRET_KEY`
+- `STRIPE_ACCOUNT_B_WEBHOOK_SECRET`
+
+### Recomendadas
+
+- `NEXT_PUBLIC_SITE_URL`: recomendada para construir enlaces absolutos de invite/reset de forma consistente entre entornos.
+
+### Notas de seguridad
+
+- Nunca expongas ni compartas `SUPABASE_SERVICE_ROLE_KEY`.
+- No commitees `.env.local`.
+- Usa secretos de prueba en desarrollo y secretos live solo en produccion.
+- Los `*_EXTERNAL_ID` deben existir en `public.stripe_accounts`.
+
+## Scripts disponibles
+
+- `npm run dev`: inicia entorno de desarrollo.
+- `npm run build`: compila para produccion.
+- `npm run start`: levanta build de produccion.
+- `npm run lint`: ejecuta ESLint.
+
+## Flujos criticos del sistema
+
+### 1) Auth y onboarding
+
+- El middleware valida sesion y rol para rutas `/admin/**`.
+- Si el onboarding esta incompleto, redirige a `/admin/onboarding`.
+- Las rutas de auth gestionan login, recovery e invitaciones.
+
+### 2) Ingestion de transacciones Stripe
+
+- **Webhook**: `POST /api/webhooks/stripe` valida firma y persiste eventos.
+- **Sync manual**: `POST /api/stripe/sync` trae `payment_intents` historicos.
+- Mapeo/normalizacion en `src/lib/stripe/transactions.ts`.
+
+### 3) Operacion financiera (balances y payouts)
+
+- Dashboard y balances salen de APIs admin con filtros por cuenta/periodo.
+- Payouts tienen reglas de estado y permisos por rol.
+- Metodos de pago se guardan con cifrado de campos sensibles.
+
+## Permisos y seguridad
+
+- Roles principales: `owner`, `admin`, `seller`, `analyst`, `viewer`.
+- Guards server-side en `src/lib/auth/require-auth.ts`.
+- Guards de API en `src/lib/auth/api-auth.ts`.
+- Politicas de datos en `supabase/schema.sql` (RLS y funciones SQL).
+- Proteccion adicional de rutas en `src/middleware.ts` y `src/lib/supabase/middleware.ts`.
+
+## Contribucion
+
+Flujo sugerido para PRs:
+
+1. Crea una rama desde `main`.
+2. Implementa cambios pequenos y cohesionados.
+3. Ejecuta validaciones:
+   - `npm run lint`
+   - `npm run build`
+4. Documenta impacto funcional y tecnico en el PR.
+5. Incluye evidencia de pruebas manuales para flujos impactados.
+
+Checklist minimo antes de abrir PR:
+
+- [ ] No hay secretos en codigo o commits.
+- [ ] Las rutas/API afectadas se probaron localmente.
+- [ ] El cambio mantiene compatibilidad con roles/permisos.
+- [ ] README/docs actualizados si cambia comportamiento publico.
+
+## Troubleshooting
+
+### Error de conexion Supabase
+
+- Verifica `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Confirma que `SUPABASE_SERVICE_ROLE_KEY` sea valida para APIs server.
+
+### Fallos en webhook/sync de Stripe
+
+- Revisa claves `STRIPE_ACCOUNT_*` y `*_WEBHOOK_SECRET`.
+- Asegura que `*_EXTERNAL_ID` exista en `stripe_accounts`.
+
+### Problemas de links de invitacion o reset
+
+- Define `NEXT_PUBLIC_SITE_URL` en el entorno actual.
+- Si no existe, el sistema usa el origin de la request como fallback.
+
+### Problemas de cifrado de metodos de pago
+
+- `PAYMENT_ENCRYPTION_KEY` debe tener exactamente 64 caracteres hex.
+- Evita rotar la clave sin plan de migracion de datos cifrados.
+
+## Estado actual y limitaciones
+
+- No hay script de tests en `package.json` actualmente.
+- `next.config.ts` usa configuracion minima por defecto.
+- Existen rutas contempladas en middleware/navegacion que pueden requerir consolidacion funcional en futuras iteraciones.
 
 ---
 
-## Fase 1 - Contrato de datos y backend funcional
-
-**Objetivo:** estabilizar el dominio de datos y la capa backend para consumo frontend.
-
-### TODO
-
-- [ ] Documentar diccionario de datos (tablas, campos clave, relaciones) desde `supabase/schema.sql`.
-- [ ] Crear matriz funcion SQL -> caso de uso frontend.
-- [ ] Definir endpoints/RPC para dashboard, assignments, payouts y team.
-- [ ] Definir convencion de errores y payloads de API.
-- [ ] Definir estrategia de migraciones versionadas de DB.
-
-### Definition of Done
-
-- Existe contrato de datos y endpoints acordado con frontend.
-- Los casos de uso principales tienen fuente de datos clara.
-- El esquema queda listo para evolucion controlada por migraciones.
-
----
-
-## Fase 2 - Capa de datos frontend (hooks)
-
-**Objetivo:** construir hooks por dominio con React Query y manejo estandar de estados.
-
-### Estructura objetivo de hooks
-
-- `src/hooks/dashboard/*`
-- `src/hooks/transactions/*`
-- `src/hooks/assignments/*`
-- `src/hooks/payouts/*`
-- `src/hooks/team/*`
-- `src/hooks/settings/*`
-
-### TODO
-
-- [ ] Definir `queryKeys` por dominio en un archivo central.
-- [ ] Implementar hooks de lectura (listas, detalle, KPIs).
-- [ ] Implementar hooks de mutacion (claim/unclaim, payout actions, update settings).
-- [ ] Estandarizar invalidaciones y optimistic updates donde aplique.
-- [ ] Estandarizar manejo de `loading`, `error`, `empty` y toasts.
-
-### Definition of Done
-
-- Cada modulo tiene hooks reutilizables y tipados.
-- No hay fetch ad-hoc en componentes de pagina.
-- Estrategia de cache e invalidacion documentada y consistente.
-
----
-
-## Fase 3 - Modulos y rutas admin
-
-**Objetivo:** habilitar modulos de negocio navegables y protegidos por permisos.
-
-### TODO
-
-- [ ] Implementar `src/app/admin/orders/page.tsx`.
-- [ ] Implementar `src/app/admin/configuration/page.tsx`.
-- [ ] Crear seccion `src/app/settings/*` referenciada por navegacion.
-- [ ] Definir rutas para productos/categorias/inventario/sucursales segun backlog.
-- [ ] Integrar guardas RBAC por vista y accion.
-
-### Definition of Done
-
-- Sidebar y breadcrumbs apuntan solo a rutas existentes.
-- Las rutas admin principales son funcionales.
-- Los permisos bloquean acciones sensibles por rol.
-
----
-
-## Fase 4 - UI/UX end-to-end
-
-**Objetivo:** completar experiencia de usuario con flujos reales y consistentes.
-
-### TODO
-
-- [ ] Diseñar vistas de lista, filtros y detalle por modulo.
-- [ ] Implementar tabla de transacciones con estados y acciones.
-- [ ] Implementar vista de asignaciones y comisiones.
-- [ ] Implementar vista de retiros (`seller_payouts`) y metodos de pago.
-- [ ] Completar dashboard con KPIs reales (ventas, comisiones, saldo disponible, retiros pendientes).
-- [ ] Estandarizar componentes de `skeleton`, `empty state`, `error state`, confirmaciones y feedback.
-
-### Definition of Done
-
-- El usuario puede completar flujos de negocio sin salir del panel.
-- La UI mantiene patrones consistentes en todos los modulos.
-- Los estados de carga/error/vacio estan cubiertos en pantallas criticas.
-
----
-
-## Fase 5 - Calidad y pruebas
-
-**Objetivo:** reducir regresiones y asegurar estabilidad antes de staging.
-
-### TODO
-
-- [ ] Agregar framework de pruebas y script `test` en `package.json`.
-- [ ] Crear unit tests para utilidades de auth, permisos, mappers y crypto.
-- [ ] Crear integration tests para API routes (webhook, sync, confirm auth).
-- [ ] Crear E2E smoke para login, dashboard y flujo de payout.
-- [ ] Integrar `lint`, `type-check`, `test`, `build` como quality gates en CI.
-
-### Definition of Done
-
-- Hay cobertura automatica sobre flujos criticos.
-- Ningun PR se fusiona sin pasar gates de calidad.
-- Se puede detectar regresion funcional antes de deploy.
-
----
-
-## Fase 6 - Observabilidad y hardening
-
-**Objetivo:** operar en produccion con monitoreo, trazabilidad y seguridad.
-
-### TODO
-
-- [ ] Exponer `/api/health` y `/api/ready`.
-- [ ] Integrar tracking de errores y logging estructurado.
-- [ ] Definir alertas minimas (errores API, webhook fallido, latencia, tasa de 5xx).
-- [ ] Revisar y probar politicas RLS por rol para operaciones criticas.
-- [ ] Hardening de `next.config.ts` y cabeceras de seguridad.
-- [ ] Definir runbooks: incidente, rollback, degradacion y rotacion de claves.
-
-### Definition of Done
-
-- Se detectan y diagnostican fallos en tiempo razonable.
-- Existen procedimientos de respuesta operativa.
-- Seguridad de app y DB validada para escenario productivo.
-
----
-
-## Fase 7 - Staging, UAT y Go-Live
-
-**Objetivo:** salir a produccion con control de riesgo y plan de soporte inicial.
-
-### TODO
-
-- [ ] Configurar pipeline CI/CD con despliegue a `staging` y `production`.
-- [ ] Ejecutar UAT por modulo con checklist de aceptacion.
-- [ ] Realizar prueba de carga basica y prueba de resiliencia operativa.
-- [ ] Preparar ventana de lanzamiento y plan de rollback.
-- [ ] Ejecutar go-live y monitoreo intensivo de 48-72h.
-- [ ] Cerrar postmortem inicial con backlog de mejoras.
-
-### Definition of Done
-
-- UAT aprobado por negocio y equipo tecnico.
-- Go-live ejecutado con metricas estables.
-- Existe plan de mejoras priorizado post-lanzamiento.
-
-## 5) Backlog detallado de hooks, modulos y UI
-
-## Hooks (prioridad sugerida)
-
-### A. Dashboard
-
-- [ ] `use-dashboard-kpis`
-- [ ] `use-sales-timeseries`
-- [ ] `use-pending-payouts-summary`
-
-### B. Transactions
-
-- [ ] `use-transactions-list` (filtros/paginacion)
-- [ ] `use-transaction-detail`
-- [ ] `use-sync-stripe-transactions` (trigger admin)
-
-### C. Assignments
-
-- [ ] `use-assign-transaction`
-- [ ] `use-unassign-transaction`
-- [ ] `use-assignment-history`
-
-### D. Payouts
-
-- [ ] `use-seller-payouts`
-- [ ] `use-create-payout`
-- [ ] `use-update-payout-status`
-- [ ] `use-payment-methods`
-
-### E. Team y Settings
-
-- [ ] `use-team-members`
-- [ ] `use-invitations`
-- [ ] `use-role-management`
-- [ ] `use-profile-settings`
-
-## Modulos/UI (secuencia recomendada)
-
-1. Dashboard (KPIs)
-2. Transactions
-3. Assignments/Commissions
-4. Payouts
-5. Team + Invitations
-6. Configuration + Settings
-
-Para cada modulo:
-
-- [ ] pagina + layout
-- [ ] hooks de lectura
-- [ ] acciones/mutaciones
-- [ ] validaciones de permisos
-- [ ] estados visuales completos
-- [ ] pruebas minimas
-
-## 6) Plan de ejecucion sugerido (12 semanas)
-
-- Semana 1-2: Fase 0
-- Semana 3-4: Fase 1
-- Semana 5-6: Fase 2
-- Semana 7-8: Fase 3
-- Semana 9-10: Fase 4
-- Semana 11: Fase 5-6
-- Semana 12: Fase 7
-
-## 7) Checklist global de salida a produccion
-
-- [ ] Seguridad aprobada (secretos, permisos, RLS, hardening)
-- [ ] Calidad aprobada (lint, type-check, tests, build)
-- [ ] Observabilidad activa (health, logs, alertas)
-- [ ] Operacion definida (runbooks y ownership)
-- [ ] UAT aprobado
-- [ ] Plan de rollback validado
-- [ ] Go-live ejecutado y monitoreado
-
----
-
-## Referencias tecnicas clave
-
-- DB schema: `supabase/schema.sql`
-- Layout shell: `src/components/conditional-layout.tsx`
-- Sidebar: `src/components/ui/app-sidebar.tsx`
-- Header/Breadcrumb: `src/components/ui/app-header.tsx`
-- React Query provider: `src/app/providers.tsx`
-- Middleware auth/rutas: `src/middleware.ts`, `src/lib/supabase/middleware.ts`
-- API webhook de cobros: `src/app/api/webhooks/stripe/route.ts`
-- API sync de cobros: `src/app/api/stripe/sync/route.ts`
-- API confirm auth: `src/app/api/auth/confirm/route.ts`
-- RBAC frontend: `src/lib/auth/permissions.ts`
-- Supabase admin client: `src/lib/supabase/admin.ts`
-
-Este README es la fuente de verdad para ejecutar el roadmap hasta produccion.
+Si necesitas una vista todavia mas profunda, la siguiente referencia principal es `supabase/schema.sql` para reglas de negocio y seguridad de datos.

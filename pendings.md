@@ -1,8 +1,0 @@
-- [x] Eliminar los hooks que no sean de autenticación del proyecto.
-- [x] Conservar únicamente los hooks relacionados a auth.
-- [ ] Integrar una base de datos al proyecto (ejemplo: PostgreSQL, MySQL o MongoDB).
-  - [x] Generar esquema SQL inicial para usuarios y autenticación.
-  - [ ] Ejecutar esquema en Supabase.
-- [ ] Verificar que los usuarios se puedan registrar correctamente y se guarden en la base de datos.
-- [ ] Verificar que el middleware de protección de rutas funcione correctamente para auth.
-- [ ] Probar el flujo de login, registro, logout y acceso restringido.
