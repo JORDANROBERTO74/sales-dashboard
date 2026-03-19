@@ -88,7 +88,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <Link
-          href="/admin/dashboard"
+          href="/"
           className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors group-data-[collapsible=icon]:justify-center"
           onClick={handleLinkClick}
         >
