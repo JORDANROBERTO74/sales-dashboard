@@ -1,4 +1,4 @@
-export const ASSIGNMENT_ACCESS_FROM_ISO = "2026-03-18T00:00:00Z";
+export const ASSIGNMENT_ACCESS_FROM_ISO = "2026-03-16T00:00:00Z";
 export const ASSIGNMENT_ACCESS_FROM_TS = Date.parse(ASSIGNMENT_ACCESS_FROM_ISO);
 
 export function isBeforeAssignmentAccessDate(

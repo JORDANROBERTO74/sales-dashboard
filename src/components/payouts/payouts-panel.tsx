@@ -85,6 +85,8 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
     isSeller,
     canRunScopedQueries,
   } = useUserScope();
+  const canCreatePayoutForAccount =
+    accountExternalId === "acct_vascruz" ? canManage : canManage || isSeller;
   const createMutation = useCreatePayout();
   const updateMutation = useUpdatePayout();
   const infiniteSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -153,14 +155,14 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
       sellerUserId: selectedCreateSellerId,
     },
     {
-      enabled: Boolean(selectedCreateSellerId) && canRunScopedQueries,
+      enabled: canCreatePayoutForAccount && Boolean(selectedCreateSellerId) && canRunScopedQueries,
     },
   );
   const createAvailableForPayoutCents =
     createBalanceQuery.data?.kpis.available_for_payout_cents ?? 0;
   const createPaymentMethodsQuery = usePayoutSellerPaymentMethods(
     selectedCreateSellerId,
-    canRunScopedQueries,
+    canCreatePayoutForAccount && canRunScopedQueries,
   );
 
   useEffect(() => {
@@ -277,34 +279,39 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
               ) : null}
             </div>
           </div>
-          <PayoutsCreateDialog
-            open={isCreateOpen}
-            onOpenChange={(open) => {
-              setIsCreateOpen(open);
-              if (!open && canManage) setCreateSellerId("");
-            }}
-            accountLabel={accountLabel}
-            accountExternalId={accountExternalId}
-            sellers={sellers}
-            canManage={canManage}
-            selectedSellerId={selectedCreateSellerId}
-            onSelectedSellerIdChange={setCreateSellerId}
-            availableForPayoutCents={createAvailableForPayoutCents}
-            isAvailableBalanceLoading={createBalanceQuery.isLoading}
-            isAvailableBalanceError={createBalanceQuery.isError}
-            paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
-            isPaymentMethodsLoading={createPaymentMethodsQuery.isLoading}
-            isPaymentMethodsError={createPaymentMethodsQuery.isError}
-            isPending={createMutation.isPending}
-            onSubmit={(payload) => {
-              createMutation.mutate(payload, {
-                onSuccess: () => {
-                  setIsCreateOpen(false);
-                  if (canManage) setCreateSellerId("");
-                },
-              });
-            }}
-          />
+          {canCreatePayoutForAccount ? (
+            <PayoutsCreateDialog
+              open={isCreateOpen}
+              onOpenChange={(open) => {
+                setIsCreateOpen(open);
+                if (!open && canManage) setCreateSellerId("");
+              }}
+              accountLabel={accountLabel}
+              accountExternalId={accountExternalId}
+              sellers={sellers}
+              canManage={canManage}
+              selectedSellerId={selectedCreateSellerId}
+              onSelectedSellerIdChange={setCreateSellerId}
+              availableForPayoutCents={createAvailableForPayoutCents}
+              isAvailableBalanceLoading={createBalanceQuery.isLoading}
+              isAvailableBalanceError={createBalanceQuery.isError}
+              paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
+              isPaymentMethodsLoading={createPaymentMethodsQuery.isLoading}
+              isPaymentMethodsError={createPaymentMethodsQuery.isError}
+              isPending={createMutation.isPending}
+              onSubmit={(payload) => {
+                if (!canCreatePayoutForAccount) return;
+                createMutation.mutate(payload, {
+                  onSuccess: () => {
+                    setIsCreateOpen(false);
+                    if (canManage) setCreateSellerId("");
+                  },
+                });
+              }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Solo admin puede realizar retiros.</p>
+          )}
         </div>
 
         <div className={`grid gap-3 ${canManage ? "md:grid-cols-4" : "md:grid-cols-3"}`}>

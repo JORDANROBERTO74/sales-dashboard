@@ -82,7 +82,7 @@ export async function POST(
   ) {
     return NextResponse.json(
       {
-        error: "Solo se permite asignar/desasignar transacciones desde el 18/03/2026.",
+        error: "Solo se permite asignar/desasignar transacciones desde el 16/03/2026.",
         error_code: "ASSIGNMENT_DATE_LOCKED",
       },
       { status: 403 }
@@ -254,7 +254,7 @@ export async function DELETE(
   ) {
     return NextResponse.json(
       {
-        error: "Solo se permite asignar/desasignar transacciones desde el 18/03/2026.",
+        error: "Solo se permite asignar/desasignar transacciones desde el 16/03/2026.",
         error_code: "ASSIGNMENT_DATE_LOCKED",
       },
       { status: 403 }

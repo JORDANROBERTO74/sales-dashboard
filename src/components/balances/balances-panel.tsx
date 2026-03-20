@@ -39,6 +39,8 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
   const { isAdminLike: canUseAdminFilters, isSeller, sellerId, canRunScopedQueries } =
     useUserScope();
   const canCreatePayout = canUseAdminFilters || isSeller;
+  const canCreatePayoutForAccount =
+    accountExternalId === "acct_vascruz" ? canUseAdminFilters : canCreatePayout;
   const currentUserId = sellerId;
   const sourceTab = accountExternalId === "acct_vascruz" ? "vascruz" : "jnode";
   const createMutation = useCreatePayout();
@@ -95,14 +97,14 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
       sellerUserId: selectedCreateSellerId,
     },
     {
-      enabled: canCreatePayout && Boolean(selectedCreateSellerId) && canRunScopedQueries,
+      enabled: canCreatePayoutForAccount && Boolean(selectedCreateSellerId) && canRunScopedQueries,
     },
   );
   const createAvailableForPayoutCents =
     createBalanceQuery.data?.kpis.available_for_payout_cents ?? 0;
   const createPaymentMethodsQuery = usePayoutSellerPaymentMethods(
     selectedCreateSellerId,
-    canCreatePayout && canRunScopedQueries,
+    canCreatePayoutForAccount && canRunScopedQueries,
   );
 
   useEffect(() => {
@@ -168,7 +170,7 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                 Cuenta {accountExternalId}.
               </CardDescription>
             </div>
-            {canCreatePayout ? (
+            {canCreatePayoutForAccount ? (
               <PayoutsCreateDialog
                 open={isCreateOpen}
                 onOpenChange={(open) => {
@@ -190,6 +192,7 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                 isPending={createMutation.isPending}
                 triggerLabel="Retirar"
                 onSubmit={(payload) => {
+                  if (!canCreatePayoutForAccount) return;
                   createMutation.mutate(payload, {
                     onSuccess: () => {
                       setIsCreateOpen(false);
@@ -201,7 +204,9 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                   });
                 }}
               />
-            ) : null}
+            ) : (
+              <p className="text-sm text-muted-foreground">Solo admin puede realizar retiros.</p>
+            )}
           </div>
 
           {canUseAdminFilters ? (
