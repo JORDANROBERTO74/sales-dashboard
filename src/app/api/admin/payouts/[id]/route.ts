@@ -342,7 +342,9 @@ export async function PATCH(
   const supabase = await createClient();
   let currentPayoutQuery = supabase
     .from("seller_payouts")
-    .select("id, user_id, status, payout_method")
+    .select(
+      "id, user_id, status, payout_method, stripe_accounts:stripe_account_id(stripe_account_external_id)",
+    )
     .eq("id", id);
   if (auth.role === UserRole.SELLER) {
     currentPayoutQuery = currentPayoutQuery.eq("user_id", auth.profileId);
@@ -358,6 +360,26 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Payout no encontrado", error_code: "PAYOUT_NOT_FOUND" },
       { status: 404 },
+    );
+  }
+
+  const account = firstItem(
+    (currentPayout as { stripe_accounts?: { stripe_account_external_id?: string } | { stripe_account_external_id?: string }[] })
+      .stripe_accounts,
+  );
+  const stripeAccountExternalId = account?.stripe_account_external_id;
+
+  if (
+    stripeAccountExternalId === "acct_vascruz" &&
+    auth.role !== UserRole.OWNER &&
+    auth.role !== UserRole.ADMIN
+  ) {
+    return NextResponse.json(
+      {
+        error: "Solo owners y admins pueden gestionar retiros en la cuenta Vascruz",
+        error_code: "VASCRUZ_PAYOUT_FORBIDDEN",
+      },
+      { status: 403 },
     );
   }
 

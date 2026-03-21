@@ -85,6 +85,8 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
     isSeller,
     canRunScopedQueries,
   } = useUserScope();
+  const canCreatePayout =
+    accountExternalId === "acct_vascruz" ? canManage : canManage || isSeller;
   const createMutation = useCreatePayout();
   const updateMutation = useUpdatePayout();
   const infiniteSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -262,49 +264,58 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
   return (
     <Card>
       <CardHeader className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <CardTitle>Retiros {accountLabel}</CardTitle>
-            <CardDescription>
-              Cuenta {accountExternalId}. Filtra y gestiona payouts por estado.
-            </CardDescription>
-            <div className="inline-flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{resultsLabel}</span>
-              {payoutsQuery.isFetching &&
-                !payoutsQuery.isLoading &&
-                !payoutsQuery.isFetchingNextPage ? (
-                <Spinner />
-              ) : null}
+        <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between md:items-center">
+            <div className="space-y-2">
+              <CardTitle>Retiros {accountLabel}</CardTitle>
+              <CardDescription>
+                Cuenta {accountExternalId}. Filtra y gestiona payouts por estado.
+              </CardDescription>
             </div>
+            {canCreatePayout ? (
+              <PayoutsCreateDialog
+                open={isCreateOpen}
+                onOpenChange={(open) => {
+                  setIsCreateOpen(open);
+                  if (!open && canManage) setCreateSellerId("");
+                }}
+                accountLabel={accountLabel}
+                accountExternalId={accountExternalId}
+                sellers={sellers}
+                canManage={canManage}
+                selectedSellerId={selectedCreateSellerId}
+                showTrigger={canCreatePayout}
+                onSelectedSellerIdChange={setCreateSellerId}
+                availableForPayoutCents={createAvailableForPayoutCents}
+                isAvailableBalanceLoading={createBalanceQuery.isLoading}
+                isAvailableBalanceError={createBalanceQuery.isError}
+                paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
+                isPaymentMethodsLoading={createPaymentMethodsQuery.isLoading}
+                isPaymentMethodsError={createPaymentMethodsQuery.isError}
+                isPending={createMutation.isPending}
+                onSubmit={(payload) => {
+                  createMutation.mutate(payload, {
+                    onSuccess: () => {
+                      setIsCreateOpen(false);
+                      if (canManage) setCreateSellerId("");
+                    },
+                  });
+                }}
+              />
+            ) : accountExternalId === "acct_vascruz" ? (
+              <p className="text-sm text-muted-foreground">
+                Solo admins pueden realizar retiros en Vascruz.
+              </p>
+            ) : null}
           </div>
-          <PayoutsCreateDialog
-            open={isCreateOpen}
-            onOpenChange={(open) => {
-              setIsCreateOpen(open);
-              if (!open && canManage) setCreateSellerId("");
-            }}
-            accountLabel={accountLabel}
-            accountExternalId={accountExternalId}
-            sellers={sellers}
-            canManage={canManage}
-            selectedSellerId={selectedCreateSellerId}
-            onSelectedSellerIdChange={setCreateSellerId}
-            availableForPayoutCents={createAvailableForPayoutCents}
-            isAvailableBalanceLoading={createBalanceQuery.isLoading}
-            isAvailableBalanceError={createBalanceQuery.isError}
-            paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
-            isPaymentMethodsLoading={createPaymentMethodsQuery.isLoading}
-            isPaymentMethodsError={createPaymentMethodsQuery.isError}
-            isPending={createMutation.isPending}
-            onSubmit={(payload) => {
-              createMutation.mutate(payload, {
-                onSuccess: () => {
-                  setIsCreateOpen(false);
-                  if (canManage) setCreateSellerId("");
-                },
-              });
-            }}
-          />
+          <div className="inline-flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">{resultsLabel}</span>
+            {payoutsQuery.isFetching &&
+              !payoutsQuery.isLoading &&
+              !payoutsQuery.isFetchingNextPage ? (
+              <Spinner />
+            ) : null}
+          </div>
         </div>
 
         <div className={`grid gap-3 ${canManage ? "md:grid-cols-4" : "md:grid-cols-3"}`}>

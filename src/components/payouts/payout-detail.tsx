@@ -110,8 +110,10 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
   const receivedAmountToDisplay = row.status === "pending" ? 0 : row.received_amount;
   const paymentMethodFields = paymentMethod ? renderPaymentMethodFields(paymentMethod) : [];
   const isPendingRow = row.status === "pending";
+  const isVascruz = row.stripe_account_external_id === "acct_vascruz";
   const canComplete = isPendingRow && isAdminLike;
-  const canCancel = isPendingRow && (isAdminLike || isSeller);
+  const canCancel =
+    isPendingRow && (isVascruz ? isAdminLike : isAdminLike || isSeller);
   const canReject = isPendingRow && isAdminLike;
   const hasSellerPhone = Boolean(row.seller_phone?.match(/\d/));
   const canSeeNotifyButton = isAdminLike || (isSeller && isPendingRow);

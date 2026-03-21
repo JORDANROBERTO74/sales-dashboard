@@ -38,7 +38,10 @@ type BalancesPanelProps = {
 export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanelProps) {
   const { isAdminLike: canUseAdminFilters, isSeller, sellerId, canRunScopedQueries } =
     useUserScope();
-  const canCreatePayout = canUseAdminFilters || isSeller;
+  const canCreatePayout =
+    accountExternalId === "acct_vascruz"
+      ? canUseAdminFilters
+      : (canUseAdminFilters || isSeller);
   const currentUserId = sellerId;
   const sourceTab = accountExternalId === "acct_vascruz" ? "vascruz" : "jnode";
   const createMutation = useCreatePayout();
@@ -161,7 +164,7 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
     <div className="space-y-6">
       <Card className="border-0 bg-transparent py-0 shadow-none rounded-none md:rounded-xl md:border md:bg-card md:py-6 md:shadow-sm">
         <CardHeader className="px-0 md:px-6 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between md:items-center">
             <div className="space-y-2">
               <CardTitle>Saldos {accountLabel}</CardTitle>
               <CardDescription>
@@ -201,6 +204,10 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                   });
                 }}
               />
+            ) : accountExternalId === "acct_vascruz" ? (
+              <p className="text-sm text-muted-foreground">
+                Solo admins pueden realizar retiros en Vascruz.
+              </p>
             ) : null}
           </div>
 

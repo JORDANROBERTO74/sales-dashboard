@@ -385,6 +385,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    accountExternalId === "acct_vascruz" &&
+    auth.role !== UserRole.OWNER &&
+    auth.role !== UserRole.ADMIN
+  ) {
+    return NextResponse.json(
+      {
+        error: "Solo owners y admins pueden realizar retiros en la cuenta Vascruz",
+        error_code: "VASCRUZ_PAYOUT_FORBIDDEN",
+      },
+      { status: 403 },
+    );
+  }
+
   const supabase = await createClient();
   const { data: payoutUserData, error: payoutUserError } = await supabase
     .from("users")
