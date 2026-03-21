@@ -88,7 +88,6 @@ export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
         onboardingCompleted: true,
         preferences: {
           language: values.language,
-          theme: values.theme,
         },
       },
       {

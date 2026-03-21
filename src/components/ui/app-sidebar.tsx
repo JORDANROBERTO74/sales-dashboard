@@ -6,10 +6,13 @@ import {
   ReceiptText,
   Settings,
   Store,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { NavMain } from "@/components/ui/nav-main";
 import { NavUser } from "@/components/ui/nav-user";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,6 +26,13 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar>;
 
@@ -38,7 +48,13 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
   const router = useRouter();
   const pathSegments = pathname.split("/");
   const pathLogin = pathSegments[1];
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state } = useSidebar();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Always call hooks at the top level (React rules)
   const { data: userProfile } = useUser();
@@ -61,11 +77,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
   // Show sidebar on admin pages.
   const isAdminAuthRoute = pathname.startsWith("/admin/auth");
   const isAdminRoute = pathname.startsWith("/admin");
-  if (
-    pathLogin === "auth" ||
-    isAdminAuthRoute ||
-    !isAdminRoute
-  ) {
+  if (pathLogin === "auth" || isAdminAuthRoute || !isAdminRoute) {
     return null;
   }
 
@@ -106,7 +118,48 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
       <SidebarContent>
         <NavMain items={itemsWithIcons} />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="flex flex-col gap-2">
+        {mounted &&
+          (state === "collapsed" ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  onClick={() =>
+                    setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                  }
+                  aria-label="Cambiar tema"
+                >
+                  {resolvedTheme === "light" ? (
+                    <Moon className="size-4" />
+                  ) : (
+                    <Sun className="size-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {resolvedTheme === "light" ? "Tema oscuro" : "Tema claro"}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className="flex items-center justify-between gap-2 rounded-md border p-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Moon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="text-sm font-medium truncate">
+                  Tema oscuro
+                </span>
+              </div>
+              <Switch
+                checked={resolvedTheme === "dark"}
+                onCheckedChange={(checked) =>
+                  setTheme(checked ? "dark" : "light")
+                }
+                aria-label="Cambiar tema"
+              />
+            </div>
+          ))}
         <NavUser user={userData} />
       </SidebarFooter>
       <SidebarRail />
