@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useTheme } from "next-themes";
 import {
   useProfileSettings,
   useUpdateProfileEmail,
@@ -21,14 +20,6 @@ import { Field, FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsErrorState } from "@/components/settings/states/settings-error-state";
 import { SettingsSectionSkeleton } from "@/components/settings/states/settings-section-skeleton";
@@ -37,10 +28,6 @@ import { getSettingsErrorMessage } from "@/lib/settings/errors";
 const profileSchema = z.object({
   fullName: z.string().max(200, "Máximo 200 caracteres").optional(),
   phone: z.string().max(30, "Máximo 30 caracteres").optional(),
-  themeDark: z.boolean(),
-  language: z.enum(["es", "en"]),
-  notificationsEmail: z.boolean(),
-  notificationsPush: z.boolean(),
 });
 
 const emailSchema = z.object({
@@ -54,17 +41,12 @@ export function ProfileSettingsForm() {
   const profileQuery = useProfileSettings();
   const updateProfile = useUpdateProfileSettings();
   const updateEmail = useUpdateProfileEmail();
-  const { setTheme } = useTheme();
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       fullName: "",
       phone: "",
-      themeDark: false,
-      language: "es",
-      notificationsEmail: true,
-      notificationsPush: false,
     },
   });
 
@@ -75,37 +57,19 @@ export function ProfileSettingsForm() {
 
   useEffect(() => {
     if (!profileQuery.data) return;
-    const preferences = profileQuery.data.preferences ?? {};
-    const notifications = preferences.notifications ?? {};
-    if (preferences.theme === "dark" || preferences.theme === "light") {
-      setTheme(preferences.theme);
-    }
-
     profileForm.reset({
       fullName: profileQuery.data.full_name ?? "",
       phone: profileQuery.data.phone ?? "",
-      themeDark: preferences.theme === "dark",
-      language: preferences.language ?? "es",
-      notificationsEmail: notifications.email ?? true,
-      notificationsPush: notifications.push ?? false,
     });
     emailForm.reset({
       email: profileQuery.data.email ?? "",
     });
-  }, [emailForm, profileForm, profileQuery.data, setTheme]);
+  }, [emailForm, profileForm, profileQuery.data]);
 
   const onSubmitProfile = (values: ProfileFormValues) => {
     updateProfile.mutate({
       fullName: values.fullName ?? "",
       phone: values.phone ?? "",
-      preferences: {
-        theme: values.themeDark ? "dark" : "light",
-        language: values.language,
-        notifications: {
-          email: values.notificationsEmail,
-          push: values.notificationsPush,
-        },
-      },
     });
   };
 
@@ -138,7 +102,7 @@ export function ProfileSettingsForm() {
         <CardHeader>
           <CardTitle>Datos personales</CardTitle>
           <CardDescription>
-            Edita tu nombre, contacto, avatar y preferencias de experiencia.
+            Edita tu nombre y datos de contacto.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -181,55 +145,6 @@ export function ProfileSettingsForm() {
                       autoComplete="tel"
                       {...field}
                     />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Preferencias
-              </h3>
-              <Controller
-                name="themeDark"
-                control={profileForm.control}
-                render={({ field }) => (
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <p className="text-sm font-medium">Tema oscuro</p>
-                      <p className="text-xs text-muted-foreground">
-                        Activa la apariencia oscura para tu panel.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked);
-                        setTheme(checked ? "dark" : "light");
-                      }}
-                      aria-label="Activar tema oscuro"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="language"
-                control={profileForm.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <Label>Idioma</Label>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona idioma" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                      </SelectContent>
-                    </Select>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
