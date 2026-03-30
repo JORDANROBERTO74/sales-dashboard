@@ -26,6 +26,9 @@ import {
   useAssignTransaction,
   useUnassignTransaction,
 } from "@/hooks/transactions/use-transactions";
+import {
+  isPastTransactionAssignmentCutoff,
+} from "@/lib/transactions/assignment-cutoff";
 import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
 
 type TransactionCardProps = {
@@ -37,11 +40,6 @@ type TransactionCardProps = {
   currentUserId?: string;
   sellers: SellerOption[];
 };
-
-function getRoleLabel(roleName: SellerOption["role_name"]): string {
-  if (!roleName) return "Sin rol";
-  return roleName.charAt(0).toUpperCase() + roleName.slice(1);
-}
 
 function compactStripeId(stripeId: string): string {
   if (stripeId.length <= 18) return stripeId;
@@ -66,12 +64,16 @@ export function TransactionCard({
   const isUnassigning = unassignMutation.isPendingForTransaction(row.id);
   const isRowBusy = isAssigning || isUnassigning;
   const canSellerOperate = !isSeller || Boolean(currentUserId);
+  const assignmentFrozen = isPastTransactionAssignmentCutoff();
+  const canOperateAssignment = canManageAssignment && !assignmentFrozen;
+  const isAssignmentCurrentUser = Boolean(currentUserId && row.assignment?.user_id === currentUserId);
+  const canUnassign = canOperateAssignment && canSellerOperate && (!isSeller || isAssignmentCurrentUser);
 
   const sellerLabel = useMemo(() => {
     const seller = row.assignment?.seller;
     if (!seller) return "—";
     const identity = seller.full_name ? seller.full_name : seller.email;
-    return `${identity} (${getRoleLabel(seller.role_name)})`;
+    return identity;
   }, [row.assignment?.seller]);
   const isFundsAvailable = useMemo(() => {
     if (!row.funds_available_at) return false;
@@ -82,10 +84,12 @@ export function TransactionCard({
 
   const handleUnassign = () => {
     if (!row.assignment) return;
+    if (isPastTransactionAssignmentCutoff()) return;
     unassignMutation.mutate({ transactionId: row.id });
   };
 
   const handleAssign = () => {
+    if (isPastTransactionAssignmentCutoff()) return;
     if (isSeller) {
       if (!currentUserId) return;
       assignMutation.mutate({
@@ -175,15 +179,19 @@ export function TransactionCard({
       </div>
 
       <div className="space-y-2" data-stop-card-nav="true">
-        <div className="flex items-center justify-between gap-2">
-          {row.assignment ? <Badge variant="secondary">Asignada</Badge> : <Badge variant="outline">Sin asignar</Badge>}
-          <span className="text-xs text-muted-foreground truncate">{sellerLabel}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="shrink-0">
+            {row.assignment ? <Badge variant="secondary">Asignada</Badge> : <Badge variant="outline">Sin asignar</Badge>}
+          </span>
+          <span className="text-xs text-muted-foreground truncate flex-1 min-w-0 w-0 text-right">
+            {sellerLabel}
+          </span>
         </div>
         {canManageAssignment ? (
           row.assignment ? (
             !canSellerOperate || (isSeller && row.assignment.user_id !== currentUserId) ? (
               <Button size="sm" className="w-full" variant="outline" disabled>
-                Asignada
+                {assignmentFrozen ? "Asignación cerrada" : "Asignada"}
               </Button>
             ) : (
               <AlertDialog>
@@ -192,7 +200,7 @@ export function TransactionCard({
                     size="sm"
                     className="w-full"
                     variant="outline"
-                    disabled={isRowBusy || !canSellerOperate}
+                    disabled={isRowBusy || !canUnassign}
                     onClick={stopCardNavigation}
                   >
                     {isUnassigning ? (
@@ -201,7 +209,7 @@ export function TransactionCard({
                         Desasignando...
                       </span>
                     ) : (
-                      "Desasignar"
+                      assignmentFrozen ? "Asignación cerrada" : "Desasignar"
                     )}
                   </Button>
                 </AlertDialogTrigger>
@@ -234,7 +242,7 @@ export function TransactionCard({
               size="sm"
               className="w-full"
               variant="outline"
-              disabled={isRowBusy || !canSellerOperate}
+              disabled={isRowBusy || !canOperateAssignment || !canSellerOperate}
               onClick={(event) => {
                 stopCardNavigation(event);
                 handleAssign();
@@ -245,6 +253,8 @@ export function TransactionCard({
                   <Spinner />
                   Asignando...
                 </span>
+              ) : assignmentFrozen ? (
+                "Asignación cerrada"
               ) : (
                 "Asignar"
               )}
@@ -259,7 +269,9 @@ export function TransactionCard({
         transaction={row}
         sellers={sellers}
         isSubmitting={isAssigning}
+        isAssignmentFrozen={assignmentFrozen}
         onSubmit={(payload) => {
+          if (isPastTransactionAssignmentCutoff()) return;
           assignMutation.mutate(payload, {
             onSuccess: () => {
               setIsAssignDialogOpen(false);

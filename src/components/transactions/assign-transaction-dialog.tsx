@@ -29,6 +29,7 @@ type AssignTransactionDialogProps = {
   transaction: StripeTransactionRow | null;
   sellers: SellerOption[];
   isSubmitting: boolean;
+  isAssignmentFrozen?: boolean;
   onSubmit: (payload: AssignTransactionPayload) => void;
 };
 
@@ -43,6 +44,7 @@ export function AssignTransactionDialog({
   transaction,
   sellers,
   isSubmitting,
+  isAssignmentFrozen = false,
   onSubmit,
 }: AssignTransactionDialogProps) {
   const [sellerUserId, setSellerUserId] = useState("");
@@ -125,12 +127,18 @@ export function AssignTransactionDialog({
           >
             Cancelar
           </Button>
-          <Button className="w-full sm:w-auto" onClick={handleSubmit} disabled={!sellerUserId || isSubmitting}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={handleSubmit}
+            disabled={!sellerUserId || isSubmitting || isAssignmentFrozen}
+          >
             {isSubmitting ? (
               <span className="inline-flex items-center gap-2">
                 <Spinner />
                 Asignando...
               </span>
+            ) : isAssignmentFrozen ? (
+              "Asignación cerrada"
             ) : (
               "Confirmar asignación"
             )}

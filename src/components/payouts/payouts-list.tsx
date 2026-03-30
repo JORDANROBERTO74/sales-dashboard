@@ -135,7 +135,7 @@ export function PayoutsList({
       })}
       <div ref={infiniteSentinelRef} className="h-1 w-full" />
       {isFetchingNextPage ? (
-        <div className="inline-flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+        <div className="w-full inline-flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
           <Spinner />
           Cargando más retiros...
         </div>
