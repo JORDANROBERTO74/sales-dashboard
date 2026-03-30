@@ -22,6 +22,9 @@ import { SettingsSectionSkeleton } from "@/components/settings/states/settings-s
 import { TransactionCard } from "@/components/transactions/transaction-card";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import {
+  isPastTransactionAssignmentCutoff,
+} from "@/lib/transactions/assignment-cutoff";
+import {
   useInfiniteTransactions,
 } from "@/hooks/transactions/use-transactions";
 import { useUser } from "@/hooks/auth/use-user";
@@ -117,6 +120,7 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
   const isSeller = user?.role === "seller";
   const canManageAssignment = isAdminLike || isSeller;
   const canViewCustomerData = pages[0]?.canViewCustomerData ?? isAdminLike;
+  const isAssignmentFrozen = isPastTransactionAssignmentCutoff();
   const activeFilters = useMemo(() => {
     const items: string[] = [];
     if (filters.q?.trim()) items.push(`Buscar: ${filters.q.trim()}`);
@@ -373,7 +377,7 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
 
               <div ref={infiniteSentinelRef} className="h-1 w-full" />
               {transactionsQuery.isFetchingNextPage ? (
-                <div className="inline-flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+                <div className="w-full inline-flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
                   <Spinner />
                   Cargando más transacciones...
                 </div>
