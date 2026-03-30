@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
     );
   }
   const supabase = createAdminClient();
-  const canViewCustomerData = auth.role === UserRole.OWNER || auth.role === UserRole.ADMIN;
+  const canViewCustomerData = true;
   const fromDate = periodPreset === "always" ? null : from ? toDateStart(from) : null;
   const toDate = periodPreset === "always" ? null : to ? toDateEnd(to) : null;
   const start = (page - 1) * pageSize;
