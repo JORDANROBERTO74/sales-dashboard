@@ -95,6 +95,7 @@ export function PayoutsCreateDialog({
   const [formReference, setFormReference] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const amountCents = toCents(formAmount);
+  const isVascruzAccount = accountExternalId === "acct_vascruz";
   const exceedsAvailableBalance =
     Number.isFinite(amountCents) &&
     amountCents > 0 &&
@@ -205,9 +206,15 @@ export function PayoutsCreateDialog({
               <p className="text-muted-foreground">
                 {selectedSellerId
                   ? isAvailableBalanceLoading
-                    ? "Cargando saldo disponible..."
-                    : `Saldo disponible: ${formatUsdFromCents(availableForPayoutCents)}`
-                  : "Selecciona un usuario para ver su saldo disponible"}
+                    ? isVascruzAccount
+                      ? "Cargando tope de retiro..."
+                      : "Cargando saldo disponible..."
+                    : isVascruzAccount
+                      ? `Máximo retirable (Vascruz): ${formatUsdFromCents(availableForPayoutCents)}`
+                      : `Saldo disponible: ${formatUsdFromCents(availableForPayoutCents)}`
+                  : isVascruzAccount
+                    ? "Selecciona un usuario para ver el máximo retirable"
+                    : "Selecciona un usuario para ver su saldo disponible"}
               </p>
               {selectedSellerId ? (
                 <Button
@@ -227,7 +234,9 @@ export function PayoutsCreateDialog({
             </div>
             {exceedsAvailableBalance ? (
               <p className="text-xs text-destructive">
-                El monto a retirar no puede ser mayor al saldo disponible.
+                {isVascruzAccount
+                  ? "El monto no puede ser mayor al máximo retirable (Vascruz)."
+                  : "El monto a retirar no puede ser mayor al saldo disponible."}
               </p>
             ) : null}
           </div>

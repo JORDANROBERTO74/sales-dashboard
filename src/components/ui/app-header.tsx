@@ -143,10 +143,11 @@ export function AppHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-20 flex h-16 shrink-0 items-center border-b bg-background px-4 md:sticky md:z-10 md:gap-2 md:transition-[width,height] md:ease-linear md:group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="flex w-full items-center justify-between md:hidden">
-        <Link href="/admin/dashboard" className="flex items-center">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
           <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
             <GalleryVerticalEnd className="size-4" />
           </div>
+          <span className="truncate font-semibold text-sm">J-Node Sales</span>
         </Link>
         <Button variant="ghost" size="icon" className="size-9" onClick={toggleSidebar}>
           <Menu className="size-5" />

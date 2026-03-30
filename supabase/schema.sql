@@ -1883,10 +1883,10 @@ CREATE TRIGGER validate_payout_method
     FOR EACH ROW
     EXECUTE FUNCTION public.validate_payout_method_exists();
 
--- Validar que el monto del retiro no exceda el saldo disponible del seller.
--- Solo se consideran comisiones de transacciones cuyos fondos ya fueron liberados
--- por Stripe (funds_available_at IS NOT NULL AND funds_available_at <= NOW()).
--- Saldo disponible = comisiones con fondos liberados - (retiros completados + pendientes).
+-- Validar que el monto del retiro no exceda el saldo permitido del seller.
+-- Cuentas distintas de acct_vascruz: solo comisiones con fondos ya liberados por Stripe.
+-- acct_vascruz: suma de todas las comisiones asignadas (sin filtrar por funds_available_at)
+-- menos lo ya asignado a retiros pending/completed.
 -- Advisory lock serializa creaciones concurrentes para el mismo seller.
 CREATE OR REPLACE FUNCTION public.validate_payout_balance()
 RETURNS TRIGGER
@@ -1894,7 +1894,8 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-    available_earned INTEGER;
+    is_vascruz BOOLEAN;
+    earned_side INTEGER;
     total_disbursed INTEGER;
     available_balance INTEGER;
 BEGIN
@@ -1904,13 +1905,28 @@ BEGIN
 
     PERFORM pg_advisory_xact_lock(hashtext('payout_balance_' || NEW.user_id::text || '_' || NEW.stripe_account_id::text));
 
-    SELECT COALESCE(SUM(ta.commission_amount), 0) INTO available_earned
-    FROM public.transaction_assignments ta
-    JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
-    WHERE ta.user_id = NEW.user_id
-      AND st.stripe_account_id = NEW.stripe_account_id
-      AND st.funds_available_at IS NOT NULL
-      AND st.funds_available_at <= NOW();
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.stripe_accounts sa
+        WHERE sa.id = NEW.stripe_account_id
+          AND sa.stripe_account_external_id = 'acct_vascruz'
+    ) INTO is_vascruz;
+
+    IF is_vascruz THEN
+        SELECT COALESCE(SUM(ta.commission_amount), 0) INTO earned_side
+        FROM public.transaction_assignments ta
+        JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
+        WHERE ta.user_id = NEW.user_id
+          AND st.stripe_account_id = NEW.stripe_account_id;
+    ELSE
+        SELECT COALESCE(SUM(ta.commission_amount), 0) INTO earned_side
+        FROM public.transaction_assignments ta
+        JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
+        WHERE ta.user_id = NEW.user_id
+          AND st.stripe_account_id = NEW.stripe_account_id
+          AND st.funds_available_at IS NOT NULL
+          AND st.funds_available_at <= NOW();
+    END IF;
 
     SELECT COALESCE(SUM(allocated_amount), 0) INTO total_disbursed
     FROM public.seller_payout_allocations spa
@@ -1919,11 +1935,16 @@ BEGIN
       AND spa.stripe_account_id = NEW.stripe_account_id
       AND sp.status IN ('completed', 'pending');
 
-    available_balance := available_earned - total_disbursed;
+    available_balance := earned_side - total_disbursed;
 
     IF NEW.amount > available_balance THEN
-        RAISE EXCEPTION 'Saldo insuficiente: disponible = % centavos (solo fondos liberados), solicitado = % centavos',
-            available_balance, NEW.amount;
+        IF is_vascruz THEN
+            RAISE EXCEPTION 'Saldo insuficiente (Vascruz): disponible = % centavos, solicitado = % centavos',
+                available_balance, NEW.amount;
+        ELSE
+            RAISE EXCEPTION 'Saldo insuficiente: disponible = % centavos (solo fondos liberados), solicitado = % centavos',
+                available_balance, NEW.amount;
+        END IF;
     END IF;
 
     RETURN NEW;

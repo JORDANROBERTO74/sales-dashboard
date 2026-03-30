@@ -25,15 +25,26 @@ import {
   usePayouts,
   usePayoutSellerPaymentMethods,
 } from "@/hooks/payouts/use-payouts";
+import { payoutDialogMaxCents } from "@/lib/balances/payout-max-cents";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
-import type { BalancesFilters } from "@/types/balances";
+import type { BalancesFilters, BalancesKpis } from "@/types/balances";
 import type { PayoutStatus } from "@/types/payouts";
 
 type BalancesPanelProps = {
   accountExternalId: string;
   accountLabel: string;
 };
+
+function summaryFromKpis(kpis: BalancesKpis) {
+  const totalEarned = kpis.total_earned_cents;
+  const totalPaid = kpis.total_paid_cents;
+  const pendingPayouts = kpis.pending_payouts_cents;
+  const disbursed = totalPaid + pendingPayouts;
+  const disbursedPct =
+    totalEarned > 0 ? Math.min(100, Math.round((disbursed / totalEarned) * 100)) : 0;
+  return { totalEarned, totalPaid, pendingPayouts, disbursed, disbursedPct };
+}
 
 export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanelProps) {
   const { isAdminLike: canUseAdminFilters, isSeller, sellerId, canRunScopedQueries } =
@@ -101,8 +112,10 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
       enabled: canCreatePayout && Boolean(selectedCreateSellerId) && canRunScopedQueries,
     },
   );
-  const createAvailableForPayoutCents =
-    createBalanceQuery.data?.kpis.available_for_payout_cents ?? 0;
+  const createPayoutMaxCents = payoutDialogMaxCents(
+    accountExternalId,
+    createBalanceQuery.data?.kpis,
+  );
   const createPaymentMethodsQuery = usePayoutSellerPaymentMethods(
     selectedCreateSellerId,
     canCreatePayout && canRunScopedQueries,
@@ -146,6 +159,12 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
     return chips;
   }, [canUseAdminFilters, filters, data?.seller_options]);
 
+  const kpiSummary = useMemo(() => {
+    const kpis = balancesQuery.data?.kpis;
+    if (!kpis) return null;
+    return summaryFromKpis(kpis);
+  }, [balancesQuery.data?.kpis]);
+
   const getPayoutBadgeVariant = (status: PayoutStatus) => {
     if (status === "completed") return "success";
     if (status === "pending") return "warning";
@@ -184,7 +203,7 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                 canManage={canUseAdminFilters}
                 selectedSellerId={selectedCreateSellerId}
                 onSelectedSellerIdChange={setCreateSellerId}
-                availableForPayoutCents={createAvailableForPayoutCents}
+                availableForPayoutCents={createPayoutMaxCents}
                 isAvailableBalanceLoading={createBalanceQuery.isLoading}
                 isAvailableBalanceError={createBalanceQuery.isError}
                 paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
@@ -279,33 +298,137 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
             <>
               <div className="space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Card>
-                    <CardHeader className="space-y-1">
-                      <CardDescription>Saldo disponible para retiro</CardDescription>
-                      <CardTitle className="text-2xl">
-                        {formatUsdFromCents(data.kpis.available_for_payout_cents)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-muted-foreground">
-                        La información principal para saber cuánto se puede retirar ahora.
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="space-y-1">
-                      <CardDescription>Saldo entrante</CardDescription>
-                      <CardTitle className="text-2xl">
-                        {formatUsdFromCents(data.kpis.pending_earned_cents)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-muted-foreground">
-                        Fondos que aun se espera que se acrediten al saldo de Stripe.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  {accountExternalId === "acct_vascruz" ? (
+                    <>
+                      <Card>
+                        <CardHeader className="space-y-1">
+                          <CardDescription>Saldo disponible para retiro</CardDescription>
+                          <CardTitle className="text-2xl">
+                            {formatUsdFromCents(
+                              payoutDialogMaxCents(accountExternalId, data.kpis),
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <p className="text-xs text-muted-foreground">
+                            La información principal para saber cuánto se puede retirar ahora.
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="space-y-1">
+                          <CardDescription>Saldo disponible para retiro</CardDescription>
+                          <CardTitle className="text-2xl">
+                            {formatUsdFromCents(
+                              payoutDialogMaxCents(accountExternalId, data.kpis),
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <p className="text-xs text-muted-foreground">
+                            En Vascruz es el total ganado menos retiros completados y pendientes.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </>
+                  ) : (
+                    <>
+                      <Card>
+                        <CardHeader className="space-y-1">
+                          <CardDescription>Saldo disponible para retiro</CardDescription>
+                          <CardTitle className="text-2xl">
+                            {formatUsdFromCents(data.kpis.available_for_payout_cents)}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <p className="text-xs text-muted-foreground">
+                            La información principal para saber cuánto se puede retirar ahora.
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="space-y-1">
+                          <CardDescription>Saldo entrante</CardDescription>
+                          <CardTitle className="text-2xl">
+                            {formatUsdFromCents(data.kpis.pending_earned_cents)}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <p className="text-xs text-muted-foreground">
+                            Fondos que aun se espera que se acrediten al saldo de Stripe.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
                 </div>
+
+                {kpiSummary ? (
+                  <Card>
+                    <CardHeader className="space-y-1 pb-2">
+                      <CardTitle className="text-base">Resumen</CardTitle>
+                      <CardDescription>
+                        Total ganado y retiros según los filtros actuales de esta vista.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-0">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Total ganado</p>
+                          <p className="text-lg font-semibold tabular-nums">
+                            {formatUsdFromCents(kpiSummary.totalEarned)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Retiros completados</p>
+                          <p className="text-lg font-semibold tabular-nums">
+                            {formatUsdFromCents(kpiSummary.totalPaid)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Retiros pendientes</p>
+                          <p className="text-lg font-semibold tabular-nums">
+                            {formatUsdFromCents(kpiSummary.pendingPayouts)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Total en retiros</p>
+                          <p className="text-lg font-semibold tabular-nums">
+                            {formatUsdFromCents(kpiSummary.disbursed)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                          <span>Proporción del total ganado ya asignada a retiros</span>
+                          <span className="font-medium text-foreground tabular-nums">
+                            {kpiSummary.totalEarned > 0
+                              ? `${kpiSummary.disbursedPct}%`
+                              : "Sin datos"}
+                          </span>
+                        </div>
+                        <div
+                          className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                          role="progressbar"
+                          aria-valuenow={kpiSummary.disbursedPct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label="Porcentaje del total ganado en retiros"
+                        >
+                          <div
+                            className="h-full rounded-full bg-primary transition-[width]"
+                            style={{
+                              width:
+                                kpiSummary.totalEarned > 0
+                                  ? `${kpiSummary.disbursedPct}%`
+                                  : "0%",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 <Card>
                   <CardHeader>
