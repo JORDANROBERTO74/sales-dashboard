@@ -18,23 +18,25 @@ export function SyncTransactionsButton({
   const isAdminLike = user?.role === "owner" || user?.role === "admin";
 
   return (
-    <Button
-      className="w-full sm:w-auto"
-      variant="outline"
-      onClick={() => syncMutation.mutate(undefined)}
-      disabled={syncMutation.isPending || !isAdminLike}
-    >
-      {syncMutation.isPending ? (
-        <span className="inline-flex items-center gap-2">
-          <Spinner />
-          Sincronizando...
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-2">
-          <RefreshCcw className="size-4" />
-          Sincronizar Stripe
-        </span>
-      )}
-    </Button>
+    <>
+      {isAdminLike ? <Button
+        className="w-full sm:w-auto"
+        variant="outline"
+        onClick={() => syncMutation.mutate(undefined)}
+        disabled={syncMutation.isPending || !isAdminLike}
+      >
+        {syncMutation.isPending ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner />
+            Sincronizando...
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-2">
+            <RefreshCcw className="size-4" />
+            Sincronizar Stripe
+          </span>
+        )}
+      </Button> : null}
+    </>
   );
 }
