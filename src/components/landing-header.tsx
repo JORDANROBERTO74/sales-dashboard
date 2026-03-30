@@ -28,24 +28,24 @@ export function LandingHeader() {
         <AvatarImage src={userAvatar} alt={userName} />
         <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
       </Avatar>
-      <div className="grid text-left text-sm leading-tight">
+      <div className="hidden md:grid text-left text-sm leading-tight">
         <span className="max-w-[160px] truncate font-medium">{userName}</span>
         <span className="max-w-[160px] truncate text-xs text-muted-foreground">
           {userEmail}
         </span>
       </div>
-      <ChevronsUpDown className="size-4 text-muted-foreground" />
+      <ChevronsUpDown className="hidden md:block size-4 text-muted-foreground" />
     </Button>
   );
 
   return (
     <header className="border-b">
       <div className="container mx-auto px-4 py-2 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
+          <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
             <Building2 className="size-4" />
           </div>
-          <span className="hidden md:inline font-bold text-lg">J-Node Sales</span>
+          <span className="font-bold text-lg truncate">J-Node Sales</span>
         </Link>
 
         {userProfile ? (

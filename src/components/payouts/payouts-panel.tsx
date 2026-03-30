@@ -29,6 +29,7 @@ import {
   usePayoutSellerPaymentMethods,
   useUpdatePayout,
 } from "@/hooks/payouts/use-payouts";
+import { payoutDialogMaxCents } from "@/lib/balances/payout-max-cents";
 import { getLast30DaysRange } from "@/lib/dashboard/defaults";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import type { PayoutMethod, PayoutStatus, PayoutsFilters } from "@/types/payouts";
@@ -158,8 +159,10 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
       enabled: Boolean(selectedCreateSellerId) && canRunScopedQueries,
     },
   );
-  const createAvailableForPayoutCents =
-    createBalanceQuery.data?.kpis.available_for_payout_cents ?? 0;
+  const createPayoutMaxCents = payoutDialogMaxCents(
+    accountExternalId,
+    createBalanceQuery.data?.kpis,
+  );
   const createPaymentMethodsQuery = usePayoutSellerPaymentMethods(
     selectedCreateSellerId,
     canRunScopedQueries,
@@ -286,7 +289,7 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
                 selectedSellerId={selectedCreateSellerId}
                 showTrigger={canCreatePayout}
                 onSelectedSellerIdChange={setCreateSellerId}
-                availableForPayoutCents={createAvailableForPayoutCents}
+                availableForPayoutCents={createPayoutMaxCents}
                 isAvailableBalanceLoading={createBalanceQuery.isLoading}
                 isAvailableBalanceError={createBalanceQuery.isError}
                 paymentMethods={createPaymentMethodsQuery.data?.methods ?? []}
