@@ -139,7 +139,7 @@ export async function GET(
     );
   }
 
-  const canViewCustomerData = auth.role === UserRole.OWNER || auth.role === UserRole.ADMIN;
+  const canViewCustomerData = true;
   const customerSelectColumns = canViewCustomerData ? "customer_email, customer_name," : "";
   const supabase = createAdminClient();
 

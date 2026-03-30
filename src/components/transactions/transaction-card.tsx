@@ -34,7 +34,6 @@ import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
 type TransactionCardProps = {
   row: StripeTransactionRow;
   accountRouteSegment: "jnode" | "vascruz";
-  canViewCustomerData: boolean;
   canManageAssignment: boolean;
   isSeller: boolean;
   currentUserId?: string;
@@ -49,7 +48,6 @@ function compactStripeId(stripeId: string): string {
 export function TransactionCard({
   row,
   accountRouteSegment,
-  canViewCustomerData,
   canManageAssignment,
   isSeller,
   currentUserId,
@@ -166,7 +164,7 @@ export function TransactionCard({
       <div className="space-y-1 text-xs">
         <p>
           <span className="text-muted-foreground">Cliente: </span>
-          {canViewCustomerData ? row.customer_name || "Sin nombre" : "Oculto"}
+          {row.customer_name || "Sin nombre"}
         </p>
         <p>
           <span className="text-muted-foreground">Creada: </span>

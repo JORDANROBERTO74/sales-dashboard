@@ -45,7 +45,6 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
   }
 
   const row = transactionQuery.data.row;
-  const canViewCustomerData = transactionQuery.data.canViewCustomerData;
   const isFundsAvailable = (() => {
     if (!row.funds_available_at) return false;
     const availableAt = new Date(row.funds_available_at);
@@ -125,11 +124,11 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
           </p>
           <p>
             <span className="text-muted-foreground">Cliente: </span>
-            {canViewCustomerData ? row.customer_name || "Sin nombre" : "Oculto"}
+            {row.customer_name || "Sin nombre"}
           </p>
           <p>
             <span className="text-muted-foreground">Email: </span>
-            {canViewCustomerData ? row.customer_email || "—" : "—"}
+            {row.customer_email || "—"}
           </p>
         </CardContent>
       </Card>

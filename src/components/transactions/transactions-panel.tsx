@@ -22,9 +22,6 @@ import { SettingsSectionSkeleton } from "@/components/settings/states/settings-s
 import { TransactionCard } from "@/components/transactions/transaction-card";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import {
-  isPastTransactionAssignmentCutoff,
-} from "@/lib/transactions/assignment-cutoff";
-import {
   useInfiniteTransactions,
 } from "@/hooks/transactions/use-transactions";
 import { useUser } from "@/hooks/auth/use-user";
@@ -119,8 +116,6 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
   const isAdminLike = user?.role === "owner" || user?.role === "admin";
   const isSeller = user?.role === "seller";
   const canManageAssignment = isAdminLike || isSeller;
-  const canViewCustomerData = pages[0]?.canViewCustomerData ?? isAdminLike;
-  const isAssignmentFrozen = isPastTransactionAssignmentCutoff();
   const activeFilters = useMemo(() => {
     const items: string[] = [];
     if (filters.q?.trim()) items.push(`Buscar: ${filters.q.trim()}`);
@@ -318,7 +313,7 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
             <Input
               id="tx-search"
               className="pl-9"
-              placeholder={canViewCustomerData ? "stripe_id, email o nombre" : "stripe_id"}
+              placeholder={"stripe_id, email o nombre"}
               value={draftFilters.q ?? ""}
               onChange={(event) =>
                 setDraftFilters((current) => ({ ...current, q: event.target.value }))
@@ -365,7 +360,6 @@ export function TransactionsPanel({ accountExternalId, accountRouteSegment }: Tr
                     key={row.id}
                     row={row}
                     accountRouteSegment={accountRouteSegment}
-                    canViewCustomerData={canViewCustomerData}
                     canManageAssignment={canManageAssignment}
                     isSeller={isSeller}
                     currentUserId={user?.id}
