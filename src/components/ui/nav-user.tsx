@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,7 +25,16 @@ export function NavUser({
   };
 }) {
   const { setOpenMobile } = useSidebar();
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
   const initials = getUserInitials(user.name, user.email);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobileLayout(mq.matches);
+    const onChange = () => setIsMobileLayout(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const handleLinkClick = () => {
     setOpenMobile(false);
@@ -36,7 +46,7 @@ export function NavUser({
         <UserMenuDropdown
           user={user}
           onNavigate={handleLinkClick}
-          side="right"
+          side={isMobileLayout ? "top" : "right"}
           align="end"
           contentClassName="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg p-1"
           trigger={
