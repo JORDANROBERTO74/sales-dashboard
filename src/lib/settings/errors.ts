@@ -33,6 +33,8 @@ export function getSettingsErrorMessage(error: unknown): string {
       NO_PROFILE_CHANGES: "No hay cambios para actualizar en tu perfil.",
       PROFILE_READ_BEFORE_UPDATE_FAILED:
         "No se pudo validar tu perfil actual antes de aplicar cambios.",
+      ASSIGNMENT_LOCKED_LEGACY_TRANSACTION:
+        "Esta transacción no admite cambios de asignación (anterior al corte por fecha de creación).",
     };
     if (codeMap[errorCode]) {
       return codeMap[errorCode];

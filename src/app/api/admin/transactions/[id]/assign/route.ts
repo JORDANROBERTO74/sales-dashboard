@@ -3,11 +3,23 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
+import { isStripeTransactionAssignmentFrozen } from "@/lib/transactions/assignment-cutoff";
 
 const assignSchema = z.object({
   sellerUserId: z.string().uuid().optional(),
   notes: z.string().trim().max(500).optional(),
 });
+
+function assignmentLockedForTransactionResponse() {
+  return NextResponse.json(
+    {
+      error:
+        "Esta transacción no admite cambios de asignación (fecha de creación anterior al corte).",
+      error_code: "ASSIGNMENT_LOCKED_LEGACY_TRANSACTION",
+    },
+    { status: 403 }
+  );
+}
 
 function getRoleName(
   roles: { role_name?: string }[] | { role_name?: string } | null | undefined
@@ -57,7 +69,7 @@ export async function POST(
 
   const { data: transaction, error: txError } = await supabase
     .from("stripe_transactions")
-    .select("id")
+    .select("id, stripe_created_at")
     .eq("id", transactionId)
     .maybeSingle();
 
@@ -72,6 +84,14 @@ export async function POST(
       { error: "Transacción no encontrada", error_code: "TRANSACTION_NOT_FOUND" },
       { status: 404 }
     );
+  }
+
+  if (
+    isStripeTransactionAssignmentFrozen(
+      (transaction as { stripe_created_at?: string | null }).stripe_created_at ?? null
+    )
+  ) {
+    return assignmentLockedForTransactionResponse();
   }
 
   const { data: existingAssignment, error: existingError } = await supabase
@@ -215,7 +235,7 @@ export async function DELETE(
 
   const { data: transaction, error: txError } = await supabase
     .from("stripe_transactions")
-    .select("id")
+    .select("id, stripe_created_at")
     .eq("id", transactionId)
     .maybeSingle();
 
@@ -230,6 +250,14 @@ export async function DELETE(
       { error: "Transacción no encontrada", error_code: "TRANSACTION_NOT_FOUND" },
       { status: 404 }
     );
+  }
+
+  if (
+    isStripeTransactionAssignmentFrozen(
+      (transaction as { stripe_created_at?: string | null }).stripe_created_at ?? null
+    )
+  ) {
+    return assignmentLockedForTransactionResponse();
   }
 
   const { data: existingAssignment, error: existingError } = await supabase
