@@ -26,9 +26,7 @@ import {
   useAssignTransaction,
   useUnassignTransaction,
 } from "@/hooks/transactions/use-transactions";
-import {
-  isPastTransactionAssignmentCutoff,
-} from "@/lib/transactions/assignment-cutoff";
+import { isStripeTransactionAssignmentFrozen } from "@/lib/transactions/assignment-cutoff";
 import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
 
 type TransactionCardProps = {
@@ -64,7 +62,10 @@ export function TransactionCard({
   const isUnassigning = unassignMutation.isPendingForTransaction(row.id);
   const isRowBusy = isAssigning || isUnassigning;
   const canSellerOperate = !isSeller || Boolean(currentUserId);
-  const assignmentFrozen = isPastTransactionAssignmentCutoff();
+  const assignmentFrozen = useMemo(
+    () => isStripeTransactionAssignmentFrozen(row.stripe_created_at),
+    [row.stripe_created_at]
+  );
   const canOperateAssignment = canManageAssignment && !assignmentFrozen;
   const isAssignmentCurrentUser = Boolean(currentUserId && row.assignment?.user_id === currentUserId);
   const canUnassign = canOperateAssignment && canSellerOperate && (!isSeller || isAssignmentCurrentUser);
@@ -84,12 +85,12 @@ export function TransactionCard({
 
   const handleUnassign = () => {
     if (!row.assignment) return;
-    if (isPastTransactionAssignmentCutoff()) return;
+    if (assignmentFrozen) return;
     unassignMutation.mutate({ transactionId: row.id });
   };
 
   const handleAssign = () => {
-    if (isPastTransactionAssignmentCutoff()) return;
+    if (assignmentFrozen) return;
     if (isSeller) {
       if (!currentUserId) return;
       assignMutation.mutate({
@@ -271,7 +272,7 @@ export function TransactionCard({
         isSubmitting={isAssigning}
         isAssignmentFrozen={assignmentFrozen}
         onSubmit={(payload) => {
-          if (isPastTransactionAssignmentCutoff()) return;
+          if (assignmentFrozen) return;
           assignMutation.mutate(payload, {
             onSuccess: () => {
               setIsAssignDialogOpen(false);

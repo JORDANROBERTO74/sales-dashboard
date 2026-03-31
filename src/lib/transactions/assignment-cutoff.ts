@@ -1,19 +1,32 @@
-export const TRANSACTION_ASSIGNMENT_CUTOFF_UTC_MS = Date.UTC(
+/**
+ * Primer instante UTC en el que una transacción es elegible para asignación/desasignación
+ * según `stripe_created_at`. Las filas con `stripe_created_at` estrictamente anterior a este
+ * instante quedan congeladas (no se modifica la asignación).
+ *
+ * Incluye el 28/03/2026 desde las 00:00:00.000Z.
+ */
+export const TRANSACTION_ASSIGNMENT_MIN_STRIPE_CREATED_AT_UTC_MS = Date.UTC(
   2026,
   2,
-  29,
+  28,
   0,
   0,
   0,
 );
 
 /**
- * Devuelve `true` si la hora actual (en UTC) ya está después del corte permitido.
- *
- * Corte: desde `2026-03-29T00:00:00.000Z` (es decir, "después del 28/03/2026 UTC").
+ * `true` si no se debe permitir cambiar la asignación de esta transacción.
+ * `stripe_created_at` nulo, vacío o no parseable se trata como congelado.
  */
-export function isPastTransactionAssignmentCutoff(
-  nowMs: number = Date.now(),
+export function isStripeTransactionAssignmentFrozen(
+  stripeCreatedAt: string | null,
 ): boolean {
-  return nowMs >= TRANSACTION_ASSIGNMENT_CUTOFF_UTC_MS;
+  if (stripeCreatedAt == null || !String(stripeCreatedAt).trim()) {
+    return true;
+  }
+  const createdMs = new Date(stripeCreatedAt).getTime();
+  if (Number.isNaN(createdMs)) {
+    return true;
+  }
+  return createdMs < TRANSACTION_ASSIGNMENT_MIN_STRIPE_CREATED_AT_UTC_MS;
 }
