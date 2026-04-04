@@ -92,7 +92,7 @@ export function PayoutsCreateDialog({
   const [formPlatformFee, setFormPlatformFee] = useState("");
   const [formReference, setFormReference] = useState("");
   const [formNotes, setFormNotes] = useState("");
-  const withdrawableListScrollRef = useRef<HTMLUListElement>(null);
+  const payoutFormBodyScrollRef = useRef<HTMLDivElement>(null);
   const withdrawableSentinelRef = useRef<HTMLLIElement>(null);
 
   const withdrawableQuery = useInfiniteWithdrawablePayoutTransactions(
@@ -138,7 +138,7 @@ export function PayoutsCreateDialog({
   }, [selectedSellerId, accountExternalId]);
 
   useEffect(() => {
-    const root = withdrawableListScrollRef.current;
+    const root = payoutFormBodyScrollRef.current;
     const target = withdrawableSentinelRef.current;
     if (!root || !target || !hasNextPage) return;
 
@@ -267,8 +267,8 @@ export function PayoutsCreateDialog({
           <Button>{triggerLabel}</Button>
         </DialogTrigger>
       ) : null}
-      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-h-[85vh]">
-        <DialogHeader>
+      <DialogContent className="flex min-h-0 w-full flex-col gap-0 overflow-hidden max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] sm:max-h-[85vh] supports-[height:100dvh]:sm:max-h-[85dvh]">
+        <DialogHeader className="shrink-0 pb-4 text-left">
           <DialogTitle>Retirar</DialogTitle>
           <DialogDescription>
             Selecciona las transacciones cuya comisión incluir en el retiro para {accountLabel} (
@@ -276,7 +276,10 @@ export function PayoutsCreateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(90vh-10rem)] sm:max-h-[calc(85vh-10rem)]">
+        <div
+          ref={payoutFormBodyScrollRef}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden overscroll-contain pr-1"
+        >
           {canManage ? (
             <div className="space-y-2">
               <Label htmlFor={`create-payout-seller-${accountExternalId}`}>Usuario</Label>
@@ -377,10 +380,7 @@ export function PayoutsCreateDialog({
                   No hay transacciones con comisión retirable (estado vacío, fondos liberados según cuenta).
                 </p>
               ) : (
-                <ul
-                  ref={withdrawableListScrollRef}
-                  className="max-h-48 space-y-2 overflow-y-auto text-sm"
-                >
+                <ul className="space-y-2 text-sm">
                   {withdrawableRows.map((row) => {
                     const checked = selectedTxIds.has(row.id);
                     const wouldExceed =
@@ -431,7 +431,7 @@ export function PayoutsCreateDialog({
                   {withdrawableRows.length === withdrawableTotal
                     ? `${withdrawableTotal} transacción${withdrawableTotal === 1 ? "" : "es"} elegible${withdrawableTotal === 1 ? "" : "s"}`
                     : `${withdrawableRows.length} de ${withdrawableTotal} cargadas`}
-                  {hasNextPage ? " · Desplázate hacia abajo para cargar más" : ""}
+                  {hasNextPage ? " · Sigue bajando en el formulario para cargar más" : ""}
                 </p>
               ) : null}
             </div>
@@ -494,7 +494,7 @@ export function PayoutsCreateDialog({
           </div>
         </div>
 
-        <DialogFooter className="mb-4">
+        <DialogFooter className="shrink-0 gap-3 border-t pt-4 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] sm:border-t-0 sm:pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancelar
           </Button>

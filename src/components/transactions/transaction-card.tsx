@@ -28,6 +28,7 @@ import {
 } from "@/hooks/transactions/use-transactions";
 import { isStripeTransactionAssignmentFrozen } from "@/lib/transactions/assignment-cutoff";
 import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
+import { TRANSACTION_STATUS_PAID } from "@/lib/transactions/transaction-status";
 
 type TransactionCardProps = {
   row: StripeTransactionRow;
@@ -67,7 +68,7 @@ export function TransactionCard({
   const canOperateAssignment = canManageAssignment && !assignmentFrozen;
   const isAssignmentCurrentUser = Boolean(currentUserId && row.assignment?.user_id === currentUserId);
   const canUnassign = canOperateAssignment && canSellerOperate && (!isSeller || isAssignmentCurrentUser);
-  const isPaid = row.transaction_status === "paid";
+  const isPaid = row.transaction_status === TRANSACTION_STATUS_PAID;
 
   const sellerLabel = useMemo(() => {
     const seller = row.assignment?.seller;

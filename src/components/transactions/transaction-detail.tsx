@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { CircleCheckIcon, Undo2Icon } from "lucide-react";
+import { TRANSACTION_STATUS_PAID } from "@/lib/transactions/transaction-status";
 
 type TransactionDetailProps = {
   transactionId: string;
@@ -44,7 +45,7 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
 
   const confirmMarkAsPaid = () => {
     updateStatusMutation.mutate(
-      { transactionId, transactionStatus: "paid" },
+      { transactionId, transactionStatus: TRANSACTION_STATUS_PAID },
       { onSuccess: () => setMarkPaidDialogOpen(false) }
     );
   };
@@ -88,7 +89,7 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
     return availableAt.getTime() <= Date.now();
   })();
   const assignedSellerLabel = row.assignment?.seller?.full_name || row.assignment?.seller?.email || "—";
-  const isPaid = row.transaction_status === "paid";
+  const isPaid = row.transaction_status === TRANSACTION_STATUS_PAID;
   const canManagePaidStatus = isAdminLike;
 
   return (
