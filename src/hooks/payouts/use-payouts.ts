@@ -14,6 +14,7 @@ import type {
   PayoutStatus,
   PayoutsFilters,
   PayoutsListResponse,
+  WithdrawableTransactionsResponse,
 } from "@/types/payouts";
 
 type JsonResponse<T> = T & { error?: string; error_code?: string };
@@ -21,7 +22,7 @@ type JsonResponse<T> = T & { error?: string; error_code?: string };
 export type CreatePayoutPayload = {
   userId: string;
   accountExternalId: string;
-  amount: number;
+  stripeTransactionIds: string[];
   paymentMethodId: string;
   platformFee?: number;
   reference?: string;
@@ -42,7 +43,9 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const data = (await response.json()) as JsonResponse<T>;
   if (!response.ok) {
     if (data.error_code) {
-      throw new Error(`${data.error_code}::${data.error || "Error de servidor"}`);
+      throw new Error(
+        `${data.error_code}::${data.error || "Error de servidor"}`,
+      );
     }
     throw new Error(data.error || "Error de servidor");
   }
@@ -106,17 +109,37 @@ async function fetchPayoutDetail(payoutId: string) {
 }
 
 async function createPayout(payload: CreatePayoutPayload) {
-  return requestJson<{ row: PayoutDetailResponse["row"] }>("/api/admin/payouts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return requestJson<{ row: PayoutDetailResponse["row"] }>(
+    "/api/admin/payouts",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 async function fetchSellerPaymentMethods(sellerUserId: string) {
   const query = new URLSearchParams({ sellerUserId }).toString();
   return requestJson<PayoutSellerPaymentMethodsResponse>(
     `/api/admin/payouts/payment-methods?${query}`,
+  );
+}
+
+async function fetchWithdrawableTransactions(
+  sellerUserId: string,
+  accountExternalId: string,
+  page = 1,
+  pageSize = 100,
+) {
+  const params = new URLSearchParams({
+    sellerUserId,
+    accountExternalId,
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  return requestJson<WithdrawableTransactionsResponse>(
+    `/api/admin/payouts/withdrawable-transactions?${params.toString()}`,
   );
 }
 
@@ -146,7 +169,10 @@ type UseInfinitePayoutsOptions = {
   refetchIntervalMs?: number;
 };
 
-export function usePayouts(filters: PayoutsFilters, options?: UsePayoutsOptions) {
+export function usePayouts(
+  filters: PayoutsFilters,
+  options?: UsePayoutsOptions,
+) {
   return useQuery({
     queryKey: ["admin", "payouts", filters],
     queryFn: () => fetchPayouts(filters),
@@ -186,12 +212,49 @@ export function usePayoutDetail(payoutId?: string) {
   });
 }
 
-export function usePayoutSellerPaymentMethods(sellerUserId?: string, enabled = true) {
+export function usePayoutSellerPaymentMethods(
+  sellerUserId?: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: ["admin", "payouts", "seller-payment-methods", sellerUserId],
     queryFn: () => fetchSellerPaymentMethods(sellerUserId as string),
     enabled: enabled && Boolean(sellerUserId),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+const DEFAULT_WITHDRAWABLE_PAGE_SIZE = 10;
+
+export function useInfiniteWithdrawablePayoutTransactions(
+  sellerUserId: string | undefined,
+  accountExternalId: string,
+  enabled: boolean,
+  pageSize: number = DEFAULT_WITHDRAWABLE_PAGE_SIZE,
+) {
+  return useInfiniteQuery({
+    queryKey: [
+      "admin",
+      "payouts",
+      "withdrawable-transactions",
+      "infinite",
+      sellerUserId,
+      accountExternalId,
+      pageSize,
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchWithdrawableTransactions(
+        sellerUserId as string,
+        accountExternalId,
+        pageParam as number,
+        pageSize,
+      ),
+    enabled: Boolean(sellerUserId) && enabled,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
+    staleTime: 15 * 1000,
     refetchOnWindowFocus: false,
   });
 }
@@ -205,6 +268,9 @@ export function useCreatePayout() {
       toast.success("Retiro registrado correctamente");
       await queryClient.invalidateQueries({ queryKey: ["admin", "payouts"] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "balances"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "transactions"],
+      });
     },
     onError: (error) => {
       toast.error("No se pudo registrar el retiro", {
@@ -223,6 +289,9 @@ export function useUpdatePayout() {
       toast.success("Retiro actualizado correctamente");
       await queryClient.invalidateQueries({ queryKey: ["admin", "payouts"] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "balances"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "transactions"],
+      });
     },
     onError: (error) => {
       toast.error("No se pudo actualizar el retiro", {

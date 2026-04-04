@@ -11,6 +11,7 @@ import { SettingsErrorState } from "@/components/settings/states/settings-error-
 import { SettingsSectionSkeleton } from "@/components/settings/states/settings-section-skeleton";
 import { useUserScope } from "@/hooks/auth/use-user-scope";
 import { usePayoutDetail, useUpdatePayout } from "@/hooks/payouts/use-payouts";
+import { parsePayoutTransactionsJson } from "@/lib/payouts/payout-transaction-snapshot";
 import { buildWhatsAppPayoutUrl } from "@/lib/payouts/whatsapp";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
@@ -107,6 +108,7 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
 
   const row = payoutQuery.data.row;
   const paymentMethod = payoutQuery.data.payment_method;
+  const payoutSnapshot = parsePayoutTransactionsJson(row.transactions);
   const receivedAmountToDisplay = row.status === "pending" ? 0 : row.received_amount;
   const paymentMethodFields = paymentMethod ? renderPaymentMethodFields(paymentMethod) : [];
   const isPendingRow = row.status === "pending";
@@ -275,6 +277,29 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
           </p>
         </CardContent>
       </Card>
+
+      {payoutSnapshot.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Transacciones incluidas en el retiro</CardTitle>
+            <CardDescription>Snapshot al crear el payout (comisión por transacción).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <ul className="max-h-64 space-y-2 overflow-y-auto">
+              {payoutSnapshot.map((item) => (
+                <li key={item.transaction_id} className="rounded-md border p-2">
+                  <p className="font-mono text-xs">{item.stripe_id}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {formatDateTime(item.stripe_created_at)} · {item.customer_name || "Sin nombre"} ·{" "}
+                    {formatUsdFromCents(item.commission_amount)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Método de pago seleccionado</CardTitle>

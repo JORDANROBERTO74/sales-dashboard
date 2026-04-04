@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { parsePayoutTransactionsJson } from "@/lib/payouts/payout-transaction-snapshot";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
 import { decryptPaymentFields } from "@/lib/payment-methods/crypto";
@@ -10,6 +12,12 @@ import type {
   PayoutRow,
   PayoutStatus,
 } from "@/types/payouts";
+import type { PayoutTransactionSnapshotItem } from "@/lib/payouts/payout-transaction-snapshot";
+import {
+  TRANSACTION_STATUS_PAYOUT_PENDING,
+  TRANSACTION_STATUS_RETIRABLE,
+  TRANSACTION_STATUS_WITHDRAWN,
+} from "@/lib/transactions/transaction-status";
 
 const patchSchema = z
   .object({
@@ -24,6 +32,7 @@ const patchSchema = z
 type PayoutQueryRow = {
   id?: string;
   user_id?: string;
+  transactions?: unknown;
   stripe_account_id?: string;
   amount?: number | null;
   currency?: string | null;
@@ -104,6 +113,9 @@ function hasUpToSixDecimals(value: number): boolean {
 function toPayoutRow(row: PayoutQueryRow): PayoutRow {
   const user = firstItem(row.users);
   const account = firstItem(row.stripe_accounts);
+  const transactions = Array.isArray(row.transactions)
+    ? (row.transactions as PayoutTransactionSnapshotItem[])
+    : undefined;
   return {
     id: String(row.id ?? ""),
     user_id: String(row.user_id ?? ""),
@@ -125,7 +137,40 @@ function toPayoutRow(row: PayoutQueryRow): PayoutRow {
     paid_at: row.paid_at ?? null,
     created_at: String(row.created_at ?? new Date().toISOString()),
     updated_at: String(row.updated_at ?? new Date().toISOString()),
+    transactions,
   };
+}
+
+async function syncStripeTransactionsForPayoutStatus(
+  transactionsJson: unknown,
+  targetStatus: "completed" | "cancelled" | "rejected",
+) {
+  const items = parsePayoutTransactionsJson(transactionsJson);
+  if (items.length === 0) return;
+
+  const ids = items.map((item) => item.transaction_id);
+  const admin = createAdminClient();
+
+  if (targetStatus === "completed") {
+    const { error } = await admin
+      .from("stripe_transactions")
+      .update({ transaction_status: TRANSACTION_STATUS_WITHDRAWN })
+      .in("id", ids)
+      .eq("transaction_status", TRANSACTION_STATUS_PAYOUT_PENDING);
+    if (error) {
+      console.error("syncStripeTransactionsForPayoutStatus completed:", error.message);
+    }
+    return;
+  }
+
+  const { error } = await admin
+    .from("stripe_transactions")
+    .update({ transaction_status: TRANSACTION_STATUS_RETIRABLE })
+    .in("id", ids)
+    .eq("transaction_status", TRANSACTION_STATUS_PAYOUT_PENDING);
+  if (error) {
+    console.error("syncStripeTransactionsForPayoutStatus cancel/reject:", error.message);
+  }
 }
 
 function toPayoutPaymentMethodDetail(
@@ -163,6 +208,7 @@ function toPayoutPaymentMethodDetail(
 const selectPayoutQuery = `
   id,
   user_id,
+  transactions,
   stripe_account_id,
   amount,
   currency,
@@ -343,7 +389,7 @@ export async function PATCH(
   let currentPayoutQuery = supabase
     .from("seller_payouts")
     .select(
-      "id, user_id, status, payout_method, stripe_accounts:stripe_account_id(stripe_account_external_id)",
+      "id, user_id, status, payout_method, transactions, stripe_accounts:stripe_account_id(stripe_account_external_id)",
     )
     .eq("id", id);
   if (auth.role === UserRole.SELLER) {
@@ -469,6 +515,18 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Payout no encontrado", error_code: "PAYOUT_NOT_FOUND" },
       { status: 404 },
+    );
+  }
+
+  const payoutStatusChange = changes.status;
+  if (
+    payoutStatusChange === "completed" ||
+    payoutStatusChange === "cancelled" ||
+    payoutStatusChange === "rejected"
+  ) {
+    await syncStripeTransactionsForPayoutStatus(
+      (currentPayout as { transactions?: unknown }).transactions,
+      payoutStatusChange,
     );
   }
 
