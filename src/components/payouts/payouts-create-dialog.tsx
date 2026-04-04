@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreatePayoutPayload } from "@/hooks/payouts/use-payouts";
-import { formatUsdFromCents } from "@/lib/transactions/formatters";
+import { useInfiniteWithdrawablePayoutTransactions } from "@/hooks/payouts/use-payouts";
+import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
 import type { PayoutPaymentMethodOption, PayoutSellerOption } from "@/types/payouts";
 
 type PayoutsCreateDialogProps = {
@@ -60,10 +62,6 @@ function toCents(value: string): number {
   return Math.round(parsed * 100);
 }
 
-function formatCentsForInput(value: number): string {
-  return (value / 100).toFixed(2);
-}
-
 function paymentMethodLabel(methodType: "binance" | "airtm" | "bank_qr"): string {
   if (methodType === "bank_qr") return "Bank QR";
   return methodType === "airtm" ? "Airtm" : "Binance";
@@ -89,25 +87,74 @@ export function PayoutsCreateDialog({
   showTrigger = true,
   triggerLabel = "Retirar",
 }: PayoutsCreateDialogProps) {
-  const [formAmount, setFormAmount] = useState("");
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(() => new Set());
   const [formPaymentMethodId, setFormPaymentMethodId] = useState("");
   const [formPlatformFee, setFormPlatformFee] = useState("");
   const [formReference, setFormReference] = useState("");
   const [formNotes, setFormNotes] = useState("");
-  const amountCents = toCents(formAmount);
+  const payoutFormBodyScrollRef = useRef<HTMLDivElement>(null);
+  const withdrawableSentinelRef = useRef<HTMLLIElement>(null);
+
+  const withdrawableQuery = useInfiniteWithdrawablePayoutTransactions(
+    selectedSellerId,
+    accountExternalId,
+    open && Boolean(selectedSellerId),
+  );
+
+  const withdrawablePages = useMemo(() => withdrawableQuery.data?.pages ?? [], [withdrawableQuery.data]);
+  const withdrawableRows = useMemo(
+    () => withdrawablePages.flatMap((pageData) => pageData.rows),
+    [withdrawablePages],
+  );
+  const withdrawableTotal = withdrawablePages[0]?.total ?? 0;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = withdrawableQuery;
+
+  const selectedTotalCents = useMemo(() => {
+    let sum = 0;
+    for (const row of withdrawableRows) {
+      if (selectedTxIds.has(row.id)) sum += row.commission_amount;
+    }
+    return sum;
+  }, [withdrawableRows, selectedTxIds]);
+
+  const platformFeeCents = toCents(formPlatformFee || "0");
+  const normalizedPlatformFee = Number.isFinite(platformFeeCents) ? Math.max(0, platformFeeCents) : 0;
+
   const isVascruzAccount = accountExternalId === "acct_vascruz";
   const exceedsAvailableBalance =
-    Number.isFinite(amountCents) &&
-    amountCents > 0 &&
-    amountCents > availableForPayoutCents;
+    selectedTotalCents > 0 && selectedTotalCents > availableForPayoutCents;
+  const platformFeeExceedsAmount = normalizedPlatformFee > selectedTotalCents;
 
   const resetForm = () => {
-    setFormAmount("");
+    setSelectedTxIds(new Set());
     setFormPaymentMethodId("");
     setFormPlatformFee("");
     setFormReference("");
     setFormNotes("");
   };
+
+  useEffect(() => {
+    setSelectedTxIds(new Set());
+  }, [selectedSellerId, accountExternalId]);
+
+  useEffect(() => {
+    const root = payoutFormBodyScrollRef.current;
+    const target = withdrawableSentinelRef.current;
+    if (!root || !target || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        if (!hasNextPage || isFetchingNextPage) return;
+        void fetchNextPage();
+      },
+      { root, rootMargin: "0px 0px 120px 0px", threshold: 0 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, withdrawableRows.length]);
 
   useEffect(() => {
     if (!selectedSellerId) {
@@ -123,14 +170,72 @@ export function PayoutsCreateDialog({
     setFormPaymentMethodId(preferredMethod.id);
   }, [formPaymentMethodId, paymentMethods, selectedSellerId]);
 
+  const toggleTransaction = useCallback(
+    (txId: string, commission: number, checked: boolean) => {
+      setSelectedTxIds((prev) => {
+        const next = new Set(prev);
+        if (!checked) {
+          next.delete(txId);
+          return next;
+        }
+        if (next.has(txId)) return prev;
+        let currentSum = 0;
+        for (const r of withdrawableRows) {
+          if (prev.has(r.id)) currentSum += r.commission_amount;
+        }
+        if (currentSum + commission > availableForPayoutCents) return prev;
+        next.add(txId);
+        return next;
+      });
+    },
+    [availableForPayoutCents, withdrawableRows],
+  );
+
+  const selectAllUnderCap = useCallback(() => {
+    const next = new Set<string>();
+    let sum = 0;
+    for (const row of withdrawableRows) {
+      if (sum + row.commission_amount > availableForPayoutCents) break;
+      next.add(row.id);
+      sum += row.commission_amount;
+    }
+    setSelectedTxIds(next);
+  }, [withdrawableRows, availableForPayoutCents]);
+
+  const greedySelectAllIds = useMemo(() => {
+    const ids: string[] = [];
+    let sum = 0;
+    for (const row of withdrawableRows) {
+      if (sum + row.commission_amount > availableForPayoutCents) break;
+      ids.push(row.id);
+      sum += row.commission_amount;
+    }
+    return ids;
+  }, [withdrawableRows, availableForPayoutCents]);
+
+  const withdrawableSelectAllChecked =
+    greedySelectAllIds.length > 0 &&
+    greedySelectAllIds.length === selectedTxIds.size &&
+    greedySelectAllIds.every((id) => selectedTxIds.has(id));
+
+  const withdrawableSelectAllIndeterminate =
+    selectedTxIds.size > 0 && !withdrawableSelectAllChecked;
+
+  const withdrawableSelectAllDisabled =
+    isAvailableBalanceLoading ||
+    isAvailableBalanceError ||
+    availableForPayoutCents <= 0 ||
+    withdrawableQuery.isPending ||
+    greedySelectAllIds.length === 0;
+
   const handleSubmit = () => {
-    const platformFeeCents = toCents(formPlatformFee || "0");
     if (
       !selectedSellerId ||
       !formPaymentMethodId ||
-      !Number.isFinite(amountCents) ||
-      amountCents <= 0 ||
-      exceedsAvailableBalance
+      selectedTxIds.size === 0 ||
+      selectedTotalCents <= 0 ||
+      exceedsAvailableBalance ||
+      platformFeeExceedsAmount
     ) {
       return;
     }
@@ -138,10 +243,10 @@ export function PayoutsCreateDialog({
     onSubmit({
       userId: selectedSellerId,
       accountExternalId,
-      amount: amountCents,
+      stripeTransactionIds: Array.from(selectedTxIds),
       paymentMethodId: formPaymentMethodId,
-      platformFee: Math.max(0, Number.isFinite(platformFeeCents) ? platformFeeCents : 0),
-      reference: formReference,
+      platformFee: normalizedPlatformFee,
+      reference: formReference.trim() || undefined,
       notes: formNotes,
     });
   };
@@ -162,22 +267,23 @@ export function PayoutsCreateDialog({
           <Button>{triggerLabel}</Button>
         </DialogTrigger>
       ) : null}
-      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-h-[85vh]">
-        <DialogHeader>
+      <DialogContent className="flex min-h-0 w-full flex-col gap-0 overflow-hidden max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] sm:max-h-[85vh] supports-[height:100dvh]:sm:max-h-[85dvh]">
+        <DialogHeader className="shrink-0 pb-4 text-left">
           <DialogTitle>Retirar</DialogTitle>
           <DialogDescription>
-            Crea un payout pendiente para {accountLabel} ({accountExternalId}).
+            Selecciona las transacciones cuya comisión incluir en el retiro para {accountLabel} (
+            {accountExternalId}).
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(90vh-10rem)] sm:max-h-[calc(85vh-10rem)]">
+        <div
+          ref={payoutFormBodyScrollRef}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden overscroll-contain pr-1"
+        >
           {canManage ? (
             <div className="space-y-2">
               <Label htmlFor={`create-payout-seller-${accountExternalId}`}>Usuario</Label>
-              <Select
-                value={selectedSellerId ?? ""}
-                onValueChange={onSelectedSellerIdChange}
-              >
+              <Select value={selectedSellerId ?? ""} onValueChange={onSelectedSellerIdChange}>
                 <SelectTrigger className="w-full" id={`create-payout-seller-${accountExternalId}`}>
                   <SelectValue placeholder="Selecciona usuario" />
                 </SelectTrigger>
@@ -197,12 +303,12 @@ export function PayoutsCreateDialog({
             <Input
               type="text"
               id={`create-payout-amount-${accountExternalId}`}
-              inputMode="decimal"
-              placeholder="100.00"
-              value={formAmount}
-              onChange={(event) => setFormAmount(event.target.value)}
+              readOnly
+              className="bg-muted"
+              value={selectedTotalCents > 0 ? formatUsdFromCents(selectedTotalCents) : ""}
+              placeholder="0.00"
             />
-            <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <p className="text-muted-foreground">
                 {selectedSellerId
                   ? isAvailableBalanceLoading
@@ -216,30 +322,120 @@ export function PayoutsCreateDialog({
                     ? "Selecciona un usuario para ver el máximo retirable"
                     : "Selecciona un usuario para ver su saldo disponible"}
               </p>
-              {selectedSellerId ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={
-                    isAvailableBalanceLoading ||
-                    isAvailableBalanceError ||
-                    availableForPayoutCents <= 0
-                  }
-                  onClick={() => setFormAmount(formatCentsForInput(availableForPayoutCents))}
-                >
-                  Retirar todo
-                </Button>
-              ) : null}
             </div>
             {exceedsAvailableBalance ? (
               <p className="text-xs text-destructive">
-                {isVascruzAccount
-                  ? "El monto no puede ser mayor al máximo retirable (Vascruz)."
-                  : "El monto a retirar no puede ser mayor al saldo disponible."}
+                La suma de comisiones seleccionadas supera el saldo disponible.
+              </p>
+            ) : null}
+            {platformFeeExceedsAmount ? (
+              <p className="text-xs text-destructive">
+                El fee de plataforma no puede ser mayor al monto del retiro.
               </p>
             ) : null}
           </div>
+
+          {selectedSellerId ? (
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  {withdrawableRows.length > 0 ? (
+                    <Checkbox
+                      id={`payout-withdrawable-select-all-${accountExternalId}`}
+                      checked={
+                        withdrawableSelectAllIndeterminate ? "indeterminate" : withdrawableSelectAllChecked
+                      }
+                      disabled={withdrawableSelectAllDisabled}
+                      onCheckedChange={(value) => {
+                        if (value === true) selectAllUnderCap();
+                        else setSelectedTxIds(new Set());
+                      }}
+                      aria-label="Seleccionar o quitar todas las transacciones cargadas dentro del tope"
+                      className="mt-0.5"
+                    />
+                  ) : null}
+                  <Label
+                    htmlFor={
+                      withdrawableRows.length > 0
+                        ? `payout-withdrawable-select-all-${accountExternalId}`
+                        : undefined
+                    }
+                    className={withdrawableRows.length > 0 ? "cursor-pointer font-normal" : undefined}
+                  >
+                    Transacciones disponibles para retiro
+                  </Label>
+                </div>
+                {withdrawableQuery.isFetching ? (
+                  <span className="inline-flex size-4 items-center justify-center shrink-0">
+                    <Spinner />
+                  </span>
+                ) : null}
+              </div>
+              {withdrawableQuery.isError ? (
+                <p className="text-xs text-destructive">No se pudo cargar el listado de transacciones.</p>
+              ) : withdrawableQuery.isPending ? (
+                <p className="text-xs text-muted-foreground">Cargando transacciones...</p>
+              ) : withdrawableRows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No hay transacciones con comisión retirable (estado vacío, fondos liberados según cuenta).
+                </p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {withdrawableRows.map((row) => {
+                    const checked = selectedTxIds.has(row.id);
+                    const wouldExceed =
+                      !checked &&
+                      selectedTotalCents + row.commission_amount > availableForPayoutCents;
+                    return (
+                      <li
+                        key={row.id}
+                        className="flex items-start gap-2 rounded-sm border border-transparent px-1 py-0.5 hover:bg-muted/40"
+                      >
+                        <Checkbox
+                          id={`payout-tx-${row.id}`}
+                          checked={checked}
+                          disabled={wouldExceed && !checked}
+                          onCheckedChange={(value) =>
+                            toggleTransaction(row.id, row.commission_amount, value === true)
+                          }
+                          className="mt-1"
+                        />
+                        <label htmlFor={`payout-tx-${row.id}`} className="min-w-0 flex-1 cursor-pointer">
+                          <span className="font-mono text-xs">{row.stripe_id}</span>
+                          <span className="block text-muted-foreground text-xs">
+                            {formatDateTime(row.stripe_created_at)} ·{" "}
+                            {row.customer_name || "Sin nombre"} ·{" "}
+                            {formatUsdFromCents(row.commission_amount)}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                  {hasNextPage ? (
+                    <li
+                      ref={withdrawableSentinelRef}
+                      className="flex min-h-4 list-none items-center justify-center py-1"
+                      aria-hidden
+                    >
+                      {isFetchingNextPage ? (
+                        <span className="inline-flex size-4 items-center justify-center">
+                          <Spinner />
+                        </span>
+                      ) : null}
+                    </li>
+                  ) : null}
+                </ul>
+              )}
+              {withdrawableTotal > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {withdrawableRows.length === withdrawableTotal
+                    ? `${withdrawableTotal} transacción${withdrawableTotal === 1 ? "" : "es"} elegible${withdrawableTotal === 1 ? "" : "s"}`
+                    : `${withdrawableRows.length} de ${withdrawableTotal} cargadas`}
+                  {hasNextPage ? " · Sigue bajando en el formulario para cargar más" : ""}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor={`create-payout-method-${accountExternalId}`}>Método</Label>
@@ -298,7 +494,7 @@ export function PayoutsCreateDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 gap-3 border-t pt-4 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] sm:border-t-0 sm:pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancelar
           </Button>
@@ -307,9 +503,11 @@ export function PayoutsCreateDialog({
             disabled={
               !selectedSellerId ||
               !formPaymentMethodId ||
-              !formAmount ||
+              selectedTxIds.size === 0 ||
+              selectedTotalCents <= 0 ||
               isPending ||
-              exceedsAvailableBalance
+              exceedsAvailableBalance ||
+              platformFeeExceedsAmount
             }
           >
             {isPending ? <Spinner /> : null}

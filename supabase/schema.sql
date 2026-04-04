@@ -1645,6 +1645,14 @@ CREATE TABLE public.seller_payouts (
         ON DELETE RESTRICT
 );
 
+-- Snapshot JSON de transacciones incluidas al crear el retiro (auditoría en UI).
+ALTER TABLE public.seller_payouts
+    ADD COLUMN IF NOT EXISTS transactions JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Estado operativo local (retiro / marca pagado); vacío = elegible para retiro si aplica negocio.
+ALTER TABLE public.stripe_transactions
+    ADD COLUMN IF NOT EXISTS transaction_status TEXT NOT NULL DEFAULT '';
+
 -- No se crea índice simple en (user_id): el compuesto idx_seller_payouts_user_status
 -- (user_id, status) ya cubre consultas filtradas solo por user_id.
 CREATE INDEX idx_seller_payouts_status ON public.seller_payouts(status);

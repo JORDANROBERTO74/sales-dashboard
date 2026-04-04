@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { PayoutTransactionSnapshotItem } from "@/lib/payouts/payout-transaction-snapshot";
+import {
+  TRANSACTION_STATUS_PAYOUT_PENDING,
+  TRANSACTION_STATUS_RETIRABLE,
+} from "@/lib/transactions/transaction-status";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
 import type { PayoutMethod, PayoutRow, PayoutStatus } from "@/types/payouts";
@@ -24,7 +29,7 @@ const querySchema = z.object({
 const createSchema = z.object({
   userId: z.string().uuid(),
   accountExternalId: z.string().trim().max(100),
-  amount: z.coerce.number().int().min(1),
+  stripeTransactionIds: z.array(z.string().uuid()).min(1).max(200),
   paymentMethodId: z.string().uuid(),
   platformFee: z.coerce.number().int().min(0).optional(),
   reference: z.string().trim().max(200).optional(),
@@ -34,6 +39,7 @@ const createSchema = z.object({
 type PayoutQueryRow = {
   id?: string;
   user_id?: string;
+  transactions?: unknown;
   stripe_account_id?: string;
   amount?: number | null;
   currency?: string | null;
@@ -98,6 +104,9 @@ function parseNullableFiniteNumber(value: number | string | null | undefined): n
 function toPayoutRow(row: PayoutQueryRow): PayoutRow {
   const user = firstItem(row.users);
   const account = firstItem(row.stripe_accounts);
+  const transactions = Array.isArray(row.transactions)
+    ? (row.transactions as PayoutTransactionSnapshotItem[])
+    : undefined;
   return {
     id: String(row.id ?? ""),
     user_id: String(row.user_id ?? ""),
@@ -119,6 +128,7 @@ function toPayoutRow(row: PayoutQueryRow): PayoutRow {
     paid_at: row.paid_at ?? null,
     created_at: String(row.created_at ?? new Date().toISOString()),
     updated_at: String(row.updated_at ?? new Date().toISOString()),
+    transactions,
   };
 }
 
@@ -357,13 +367,20 @@ export async function POST(request: NextRequest) {
   const {
     userId,
     accountExternalId,
-    amount,
+    stripeTransactionIds,
     paymentMethodId,
     platformFee,
     reference,
     notes,
   } = parsed.data;
   const normalizedPlatformFee = platformFee ?? 0;
+  const uniqueTxIds = [...new Set(stripeTransactionIds)];
+  if (uniqueTxIds.length !== stripeTransactionIds.length) {
+    return NextResponse.json(
+      { error: "No repitas transacciones en la selección", error_code: "DUPLICATE_TRANSACTION_IDS" },
+      { status: 400 },
+    );
+  }
 
   if (auth.role === UserRole.SELLER && userId !== auth.profileId) {
     return NextResponse.json(
@@ -372,16 +389,6 @@ export async function POST(request: NextRequest) {
         error_code: "FORBIDDEN_SCOPE",
       },
       { status: 403 },
-    );
-  }
-
-  if (normalizedPlatformFee > amount) {
-    return NextResponse.json(
-      {
-        error: "El fee de plataforma no puede ser mayor al monto del retiro",
-        error_code: "INVALID_PLATFORM_FEE",
-      },
-      { status: 400 },
     );
   }
 
@@ -478,21 +485,195 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const isVascruz = accountExternalId === "acct_vascruz";
+  const admin = createAdminClient();
+
+  const { data: txRows, error: txFetchError } = await admin
+    .from("stripe_transactions")
+    .select(
+      `
+      id,
+      stripe_id,
+      stripe_created_at,
+      customer_name,
+      transaction_status,
+      funds_available_at,
+      stripe_account_id,
+      transaction_assignments!inner (
+        id,
+        user_id,
+        commission_amount
+      )
+    `,
+    )
+    .in("id", uniqueTxIds);
+
+  if (txFetchError) {
+    return NextResponse.json(
+      { error: txFetchError.message, error_code: "PAYOUT_TX_FETCH_FAILED" },
+      { status: 500 },
+    );
+  }
+
+  if (!txRows || txRows.length !== uniqueTxIds.length) {
+    return NextResponse.json(
+      {
+        error: "Alguna transacción no existe o no tiene asignación válida",
+        error_code: "INVALID_PAYOUT_TRANSACTION_SELECTION",
+      },
+      { status: 400 },
+    );
+  }
+
+  const snapshot: PayoutTransactionSnapshotItem[] = [];
+  let computedAmount = 0;
+
+  for (const raw of txRows) {
+    const row = raw as {
+      id: string;
+      stripe_id: string;
+      stripe_created_at: string | null;
+      customer_name: string | null;
+      transaction_status: string | null;
+      funds_available_at: string | null;
+      stripe_account_id: string;
+      transaction_assignments:
+        | { id: string; user_id: string; commission_amount: number }
+        | Array<{ id: string; user_id: string; commission_amount: number }>;
+    };
+
+    if (row.stripe_account_id !== accountData.id) {
+      return NextResponse.json(
+        {
+          error: "Todas las transacciones deben pertenecer a la cuenta Stripe del retiro",
+          error_code: "PAYOUT_TX_ACCOUNT_MISMATCH",
+        },
+        { status: 400 },
+      );
+    }
+
+    const assignment = Array.isArray(row.transaction_assignments)
+      ? row.transaction_assignments[0]
+      : row.transaction_assignments;
+    if (!assignment || assignment.user_id !== userId) {
+      return NextResponse.json(
+        {
+          error: "La comisión debe estar asignada al usuario del retiro",
+          error_code: "PAYOUT_TX_ASSIGNMENT_MISMATCH",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (row.transaction_status !== TRANSACTION_STATUS_RETIRABLE) {
+      return NextResponse.json(
+        {
+          error: "Alguna transacción ya no está disponible para retiro",
+          error_code: "PAYOUT_TX_NOT_RETIRABLE",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (!isVascruz) {
+      if (!row.funds_available_at) {
+        return NextResponse.json(
+          {
+            error: "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
+            error_code: "PAYOUT_TX_FUNDS_NOT_AVAILABLE",
+          },
+          { status: 400 },
+        );
+      }
+      const t = new Date(row.funds_available_at).getTime();
+      if (Number.isNaN(t) || t > Date.now()) {
+        return NextResponse.json(
+          {
+            error: "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
+            error_code: "PAYOUT_TX_FUNDS_NOT_AVAILABLE",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    const commission = Number(assignment.commission_amount ?? 0);
+    if (!Number.isFinite(commission) || commission <= 0) {
+      return NextResponse.json(
+        { error: "Comisión inválida en una de las transacciones", error_code: "INVALID_COMMISSION_AMOUNT" },
+        { status: 400 },
+      );
+    }
+
+    computedAmount += commission;
+    snapshot.push({
+      transaction_id: row.id,
+      stripe_id: row.stripe_id,
+      assignment_id: assignment.id,
+      commission_amount: commission,
+      stripe_created_at: row.stripe_created_at,
+      customer_name: row.customer_name,
+    });
+  }
+
+  if (computedAmount <= 0) {
+    return NextResponse.json(
+      { error: "El monto total del retiro debe ser mayor a cero", error_code: "INVALID_PAYOUT_AMOUNT" },
+      { status: 400 },
+    );
+  }
+
+  if (normalizedPlatformFee > computedAmount) {
+    return NextResponse.json(
+      {
+        error: "El fee de plataforma no puede ser mayor al monto del retiro",
+        error_code: "INVALID_PLATFORM_FEE",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { data: lockedRows, error: lockError } = await admin
+    .from("stripe_transactions")
+    .update({ transaction_status: TRANSACTION_STATUS_PAYOUT_PENDING })
+    .in("id", uniqueTxIds)
+    .eq("transaction_status", TRANSACTION_STATUS_RETIRABLE)
+    .select("id");
+
+  if (lockError) {
+    return NextResponse.json(
+      { error: lockError.message, error_code: "PAYOUT_TX_LOCK_FAILED" },
+      { status: 500 },
+    );
+  }
+
+  if (!lockedRows || lockedRows.length !== uniqueTxIds.length) {
+    return NextResponse.json(
+      {
+        error: "No se pudieron reservar todas las transacciones (posible conflicto concurrente)",
+        error_code: "PAYOUT_TX_LOCK_CONFLICT",
+      },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await supabase
     .from("seller_payouts")
     .insert({
       user_id: userId,
       stripe_account_id: accountData.id,
-      amount,
+      amount: computedAmount,
       payout_method: paymentMethodData.method_type as PayoutMethod,
       platform_fee: normalizedPlatformFee,
       reference: reference?.trim() || null,
       notes: notes?.trim() || null,
       created_by: auth.profileId,
+      transactions: snapshot,
     })
     .select(`
       id,
       user_id,
+      transactions,
       stripe_account_id,
       amount,
       currency,
@@ -519,6 +700,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    await admin
+      .from("stripe_transactions")
+      .update({ transaction_status: TRANSACTION_STATUS_RETIRABLE })
+      .in("id", uniqueTxIds);
     return NextResponse.json(
       { error: error.message, error_code: "PAYOUT_CREATE_FAILED" },
       { status: 400 },

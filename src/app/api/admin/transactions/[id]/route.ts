@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
@@ -48,6 +49,7 @@ type StripeTransactionQueryRaw = {
   id: string;
   stripe_id?: string;
   transaction_type?: StripeTransactionRow["transaction_type"];
+  transaction_status?: string;
   stripe_status?: string;
   amount?: number | string | null;
   currency?: StripeTransactionRow["currency"] | null;
@@ -113,6 +115,77 @@ function isStripeTransactionQueryRaw(value: unknown): value is StripeTransaction
   return typeof record.id === "string" && typeof record.created_at === "string";
 }
 
+const patchTransactionSchema = z.object({
+  transaction_status: z.string().trim().max(50),
+});
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireApiAnyRole([UserRole.OWNER, UserRole.ADMIN]);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { error: auth.error, error_code: "FORBIDDEN" },
+      { status: auth.status }
+    );
+  }
+
+  const { id: transactionId } = await context.params;
+  if (!transactionId) {
+    return NextResponse.json(
+      { error: "ID de transacción inválido", error_code: "INVALID_TRANSACTION_ID" },
+      { status: 400 }
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "JSON inválido", error_code: "INVALID_JSON" },
+      { status: 400 }
+    );
+  }
+
+  const parsed = patchTransactionSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Payload inválido", error_code: "INVALID_TRANSACTION_STATUS_PAYLOAD" },
+      { status: 400 }
+    );
+  }
+
+  const { transaction_status } = parsed.data;
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("stripe_transactions")
+    .update({
+      transaction_status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", transactionId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message, error_code: "TRANSACTION_UPDATE_FAILED" },
+      { status: 500 }
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      { error: "Transacción no encontrada", error_code: "TRANSACTION_NOT_FOUND" },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({ ok: true }, { status: 200 });
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -150,6 +223,7 @@ export async function GET(
       id,
       stripe_id,
       transaction_type,
+      transaction_status,
       stripe_status,
       amount,
       currency,
@@ -208,6 +282,7 @@ export async function GET(
     id: data.id,
     stripe_id: data.stripe_id ?? "",
     transaction_type: (data.transaction_type ?? "charge") as StripeTransactionRow["transaction_type"],
+    transaction_status: data.transaction_status ?? "",
     stripe_status: data.stripe_status ?? "",
     amount: Number(data.amount ?? 0),
     currency: (data.currency as StripeTransactionRow["currency"]) ?? "usd",

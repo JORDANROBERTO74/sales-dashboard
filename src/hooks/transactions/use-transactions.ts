@@ -84,6 +84,19 @@ async function fetchTransactionDetail(transactionId: string) {
   return requestJson<TransactionDetailResponse>(`/api/admin/transactions/${transactionId}`);
 }
 
+export type UpdateTransactionStatusPayload = {
+  transactionId: string;
+  transactionStatus: string;
+};
+
+async function patchTransactionStatus(payload: UpdateTransactionStatusPayload) {
+  return requestJson<{ ok: boolean }>(`/api/admin/transactions/${payload.transactionId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transaction_status: payload.transactionStatus }),
+  });
+}
+
 type UseTransactionsOptions = {
   refetchIntervalMs?: number;
 };
@@ -148,6 +161,22 @@ export function useTransactionDetail(transactionId?: string) {
     enabled: Boolean(transactionId),
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useUpdateTransactionStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: patchTransactionStatus,
+    onSuccess: async () => {
+      toast.success("Estado de transacción actualizado");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "transactions"] });
+    },
+    onError: (error) => {
+      toast.error("No se pudo actualizar el estado", {
+        description: getSettingsErrorMessage(error),
+      });
+    },
   });
 }
 

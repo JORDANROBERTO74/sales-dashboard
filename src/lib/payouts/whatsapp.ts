@@ -32,6 +32,20 @@ function cleanValue(value?: string | null): string {
   return value?.trim() ?? "";
 }
 
+/** URL absoluta del detalle en admin; usa `NEXT_PUBLIC_SITE_URL` o `window` en cliente. */
+export function buildAdminPayoutDetailAbsoluteUrl(
+  payoutId: string,
+): string | null {
+  const id = cleanValue(payoutId);
+  if (!id) return null;
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (fromEnv) return `${fromEnv}/admin/payouts/${id}`;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/admin/payouts/${id}`;
+  }
+  return null;
+}
+
 function normalizeWhatsAppPhone(value?: string | null): string {
   return cleanValue(value).replace(/\D/g, "");
 }
@@ -123,11 +137,17 @@ export function buildWhatsAppPayoutUrl(
         lines.push("Tipo de cambio BOB: *No registrado*");
       }
     }
+    const detailUrl = buildAdminPayoutDetailAbsoluteUrl(payoutId);
+    if (detailUrl) {
+      lines.push("");
+      lines.push(detailUrl);
+    }
   }
 
   const params = new URLSearchParams();
   params.set("text", lines.join("\n"));
 
-  const targetPhone = input.status === "pending" ? WHATSAPP_PAYOUT_PHONE : sellerPhone;
+  const targetPhone =
+    input.status === "pending" ? WHATSAPP_PAYOUT_PHONE : sellerPhone;
   return `https://wa.me/${targetPhone}?${params.toString()}`;
 }

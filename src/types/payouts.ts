@@ -1,5 +1,24 @@
+import type { PayoutTransactionSnapshotItem } from "@/lib/payouts/payout-transaction-snapshot";
+
 export type PayoutStatus = "pending" | "completed" | "cancelled" | "rejected";
 export type PayoutMethod = "binance" | "airtm" | "bank_qr";
+
+export type WithdrawableTransactionRow = {
+  id: string;
+  stripe_id: string;
+  stripe_created_at: string | null;
+  customer_name: string | null;
+  commission_amount: number;
+  assignment_id: string;
+};
+
+export type WithdrawableTransactionsResponse = {
+  rows: WithdrawableTransactionRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
 
 export type PayoutRow = {
   id: string;
@@ -22,6 +41,7 @@ export type PayoutRow = {
   paid_at: string | null;
   created_at: string;
   updated_at: string;
+  transactions?: PayoutTransactionSnapshotItem[];
 };
 
 export type PayoutSellerOption = {

@@ -6,7 +6,11 @@ export type StripeTransactionType =
   | "subscription";
 
 export type SellerAssignmentFilter = `seller:${string}`;
-export type AssignmentFilter = "all" | "assigned" | "unassigned" | SellerAssignmentFilter;
+export type AssignmentFilter =
+  | "all"
+  | "assigned"
+  | "unassigned"
+  | SellerAssignmentFilter;
 
 export type TransactionSeller = {
   id: string;
@@ -30,6 +34,7 @@ export type StripeTransactionRow = {
   id: string;
   stripe_id: string;
   transaction_type: StripeTransactionType;
+  transaction_status: string;
   stripe_status: string;
   amount: number;
   currency: "usd";

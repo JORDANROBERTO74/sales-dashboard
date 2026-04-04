@@ -1,17 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsEmptyState } from "@/components/settings/states/settings-empty-state";
 import { SettingsErrorState } from "@/components/settings/states/settings-error-state";
 import { SettingsSectionSkeleton } from "@/components/settings/states/settings-section-skeleton";
-import { useTransactionDetail } from "@/hooks/transactions/use-transactions";
+import { useUserScope } from "@/hooks/auth/use-user-scope";
+import {
+  useTransactionDetail,
+  useUpdateTransactionStatus,
+} from "@/hooks/transactions/use-transactions";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import {
   formatDateTime,
   formatUsdFromCents,
   getTransactionTypeLabel,
 } from "@/lib/transactions/formatters";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { CircleCheckIcon, Undo2Icon } from "lucide-react";
+import { TRANSACTION_STATUS_PAID } from "@/lib/transactions/transaction-status";
 
 type TransactionDetailProps = {
   transactionId: string;
@@ -19,6 +38,24 @@ type TransactionDetailProps = {
 
 export function TransactionDetail({ transactionId }: TransactionDetailProps) {
   const transactionQuery = useTransactionDetail(transactionId);
+  const updateStatusMutation = useUpdateTransactionStatus();
+  const { isAdminLike } = useUserScope();
+  const [markPaidDialogOpen, setMarkPaidDialogOpen] = useState(false);
+  const [clearPaidDialogOpen, setClearPaidDialogOpen] = useState(false);
+
+  const confirmMarkAsPaid = () => {
+    updateStatusMutation.mutate(
+      { transactionId, transactionStatus: TRANSACTION_STATUS_PAID },
+      { onSuccess: () => setMarkPaidDialogOpen(false) }
+    );
+  };
+
+  const confirmClearPaidStatus = () => {
+    updateStatusMutation.mutate(
+      { transactionId, transactionStatus: "" },
+      { onSuccess: () => setClearPaidDialogOpen(false) }
+    );
+  };
 
   if (transactionQuery.isLoading) {
     return <SettingsSectionSkeleton rows={3} showActions={false} showBadge compact />;
@@ -52,6 +89,8 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
     return availableAt.getTime() <= Date.now();
   })();
   const assignedSellerLabel = row.assignment?.seller?.full_name || row.assignment?.seller?.email || "—";
+  const isPaid = row.transaction_status === TRANSACTION_STATUS_PAID;
+  const canManagePaidStatus = isAdminLike;
 
   return (
     <div className="space-y-4">
@@ -61,11 +100,95 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
           <CardDescription>{getTransactionTypeLabel(row.transaction_type)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{row.stripe_status}</Badge>
-            <Badge variant={isFundsAvailable ? "default" : "secondary"}>
-              {isFundsAvailable ? "Fondos disponibles" : "Fondos retenidos"}
-            </Badge>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={isPaid ? "default" : isFundsAvailable ? "default" : "secondary"}>
+                {isPaid ? "Pagado" : isFundsAvailable ? "Disponible" : "Retenido"}
+              </Badge>
+            </div>
+            {canManagePaidStatus ? (
+              !isPaid ? (
+                <AlertDialog open={markPaidDialogOpen} onOpenChange={setMarkPaidDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" disabled={updateStatusMutation.isPending}>
+                      <span className="inline-flex items-center gap-2">
+                        <CircleCheckIcon className="size-4" />
+                        Marcar como pagado
+                      </span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Marcar como pagado</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se actualizará el estado operativo de esta transacción a{" "}
+                        <span className="font-medium">pagado</span>. ¿Continuar?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={updateStatusMutation.isPending}>
+                        Cancelar
+                      </AlertDialogCancel>
+                      <Button
+                        type="button"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={confirmMarkAsPaid}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Spinner />
+                            Guardando...
+                          </span>
+                        ) : (
+                          "Confirmar"
+                        )}
+                      </Button>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <AlertDialog open={clearPaidDialogOpen} onOpenChange={setClearPaidDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" disabled={updateStatusMutation.isPending}>
+                      <span className="inline-flex items-center gap-2">
+                        <Undo2Icon className="size-4" />
+                        Quitar marca de pagado
+                      </span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Quitar marca de pagado</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se borrará el estado operativo <span className="font-medium">pagado</span>. El
+                        distintivo volverá a reflejar solo la disponibilidad de fondos (disponible /
+                        retenido). ¿Continuar?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={updateStatusMutation.isPending}>
+                        Cancelar
+                      </AlertDialogCancel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={confirmClearPaidStatus}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Spinner />
+                            Guardando...
+                          </span>
+                        ) : (
+                          "Quitar etiqueta"
+                        )}
+                      </Button>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )
+            ) : null}
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-md border p-3">
