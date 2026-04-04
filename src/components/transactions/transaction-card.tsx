@@ -67,6 +67,7 @@ export function TransactionCard({
   const canOperateAssignment = canManageAssignment && !assignmentFrozen;
   const isAssignmentCurrentUser = Boolean(currentUserId && row.assignment?.user_id === currentUserId);
   const canUnassign = canOperateAssignment && canSellerOperate && (!isSeller || isAssignmentCurrentUser);
+  const isPaid = row.transaction_status === "paid";
 
   const sellerLabel = useMemo(() => {
     const seller = row.assignment?.seller;
@@ -142,8 +143,8 @@ export function TransactionCard({
           </p>
           <p className="text-xs text-muted-foreground">{getTransactionTypeLabel(row.transaction_type)}</p>
         </div>
-        <Badge variant={isFundsAvailable ? "default" : "secondary"}>
-          {isFundsAvailable ? "Disponible" : "Retenida"}
+        <Badge variant={isPaid ? "default" : isFundsAvailable ? "default" : "secondary"}>
+          {isPaid ? "Pagado" : isFundsAvailable ? "Disponible" : "Retenida"}
         </Badge>
       </div>
 

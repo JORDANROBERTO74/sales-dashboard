@@ -35,6 +35,8 @@ export function getSettingsErrorMessage(error: unknown): string {
         "No se pudo validar tu perfil actual antes de aplicar cambios.",
       ASSIGNMENT_LOCKED_LEGACY_TRANSACTION:
         "Esta transacción no admite cambios de asignación (anterior al corte por fecha de creación).",
+      INVALID_TRANSACTION_STATUS_PAYLOAD:
+        "El estado de transacción enviado no es válido (máximo 50 caracteres).",
     };
     if (codeMap[errorCode]) {
       return codeMap[errorCode];
