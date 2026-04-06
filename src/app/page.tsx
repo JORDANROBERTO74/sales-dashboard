@@ -6,7 +6,9 @@ import {
   ArrowRight,
   BanknoteArrowDown,
   CircleDollarSign,
+  CreditCard,
   HandCoins,
+  Landmark,
   LayoutDashboard,
   Lock,
   RefreshCcw,
@@ -180,6 +182,18 @@ export default function HomePage() {
               </Link>
             </Button>
           )}
+          <Button asChild variant="outline" size="lg" className="min-h-11">
+            <Link href="/services">
+              <CreditCard className="size-4" />
+              Servicios y pagos
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="min-h-11">
+            <Link href="/payment-methods">
+              <Landmark className="size-4" />
+              Métodos de pago
+            </Link>
+          </Button>
         </div>
       </section>
 
@@ -192,6 +206,65 @@ export default function HomePage() {
             </CardHeader>
           </Card>
         ))}
+      </section>
+
+      <section className="mx-auto w-full max-w-6xl px-6 pb-12">
+        <div className="mb-6 space-y-2">
+          <div className="flex items-center gap-2">
+            <CreditCard className="size-5 text-primary" />
+            <h2 className="text-2xl font-semibold">Pagos y guías públicas</h2>
+          </div>
+          <p className="max-w-3xl text-muted-foreground">
+            Accede sin iniciar sesión a los enlaces de cobro con Stripe y a las
+            guías para configurar métodos de pago y retiro en la aplicación.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CreditCard className="size-5 text-primary" />
+                Servicios y enlaces de pago
+              </CardTitle>
+              <CardDescription>
+                Catálogo de servicios con precios y enlaces de Payment Links de
+                Stripe: paga en una pestaña nueva o copia el enlace para
+                compartirlo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto">
+              <Button asChild variant="default">
+                <Link href="/services">
+                  Ir a servicios y pagos
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Landmark className="size-5 text-primary" />
+                Tutoriales de métodos de pago
+              </CardTitle>
+              <CardDescription>
+                Guías paso a paso para configurar Binance, Airtm y Banco QR y
+                reducir errores al habilitar pagos y retiros.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto flex flex-wrap gap-2">
+              <Button asChild variant="default">
+                <Link href="/payment-methods">
+                  Ver índice de tutoriales
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/payment-methods/binance">Empezar con Binance</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-6 py-8">
@@ -260,19 +333,41 @@ export default function HomePage() {
               completo: transaccion, asignacion, comision y retiro.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href="/admin/transactions">
-                Ver transacciones
-                <ArrowRight />
-              </Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/admin/balances/payouts">Gestionar retiros</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/admin/settings">Configurar equipo y tasas</Link>
-            </Button>
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex flex-wrap gap-3">
+              <Button asChild>
+                <Link href="/admin/transactions">
+                  Ver transacciones
+                  <ArrowRight />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/admin/balances/payouts">Gestionar retiros</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/settings">Configurar equipo y tasas</Link>
+              </Button>
+            </div>
+            <div className="border-t border-border pt-4">
+              <p className="mb-3 text-sm text-muted-foreground">
+                ¿Solo necesitas pagar un servicio o configurar métodos de pago?
+                Estas páginas son públicas.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild variant="outline" className="min-h-11">
+                  <Link href="/services">
+                    <CreditCard className="size-4" />
+                    Servicios y pagos
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="min-h-11">
+                  <Link href="/payment-methods">
+                    <Landmark className="size-4" />
+                    Métodos de pago
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </section>

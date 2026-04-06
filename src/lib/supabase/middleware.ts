@@ -25,6 +25,7 @@ const PUBLIC_ROUTES = [
 const ECOMMERCE_PUBLIC_ROUTES = [
   "/", // Home/Landing
   "/payment-methods",
+  "/services",
   "/branches",
   "/contact",
   "/cart",

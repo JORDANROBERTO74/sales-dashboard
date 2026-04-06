@@ -22,19 +22,60 @@ export function LandingFooter() {
 
         <div className="space-y-3">
           <p className="text-sm font-medium">Accesos</p>
-          <nav className="flex flex-col gap-2 text-sm">
-            <Link href="/auth/login" className="text-muted-foreground hover:text-foreground">
-              Iniciar sesion
-            </Link>
-            <Link href="/admin/dashboard" className="text-muted-foreground hover:text-foreground">
-              Dashboard
-            </Link>
-            <Link href="/admin/transactions" className="text-muted-foreground hover:text-foreground">
-              Transacciones
-            </Link>
-            <Link href="/admin/balances/payouts" className="text-muted-foreground hover:text-foreground">
-              Retiros
-            </Link>
+          <nav
+            className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm"
+            aria-label="Enlaces del pie"
+          >
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="/services"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Servicios y pagos
+                </Link>
+                <Link
+                  href="/payment-methods"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Métodos de pago
+                </Link>
+                <Link
+                  href="/payment-methods/binance"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Tutorial Binance
+                </Link>
+              </div>
+            </div>
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="/auth/login"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Iniciar sesión
+                </Link>
+                <Link
+                  href="/admin/dashboard"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/admin/transactions"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Transacciones
+                </Link>
+                <Link
+                  href="/admin/balances/payouts"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Retiros
+                </Link>
+              </div>
+            </div>
           </nav>
         </div>
 
