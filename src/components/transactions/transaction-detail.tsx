@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsEmptyState } from "@/components/settings/states/settings-empty-state";
@@ -93,19 +93,21 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
   const isPending = row.transaction_status === TRANSACTION_STATUS_PAYOUT_PENDING;
   const canManagePaidStatus = isAdminLike;
 
-  const transactionStatusLabel = useMemo(() => {
-    if (isPending) return "Pendiente";
-    if (isPaid) return "Pagado";
-    if (isFundsAvailable) return "Disponible";
-    return "Retenida";
-  }, [isPending, isPaid, isFundsAvailable]);
+  const transactionStatusLabel = isPending
+    ? "Pendiente"
+    : isPaid
+      ? "Pagado"
+      : isFundsAvailable
+        ? "Disponible"
+        : "Retenida";
 
-  const transactionStatusBadgeVariant = useMemo((): "default" | "secondary" | "warning" | "success" => {
-    if (isPending) return "warning";
-    if (isPaid) return "success";
-    if (isFundsAvailable) return "default";
-    return "secondary";
-  }, [isPending, isPaid, isFundsAvailable]);
+  const transactionStatusBadgeVariant: "default" | "secondary" | "warning" | "success" = isPending
+    ? "warning"
+    : isPaid
+      ? "success"
+      : isFundsAvailable
+        ? "default"
+        : "secondary";
 
   return (
     <div className="space-y-4">
