@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, LayoutDashboard, MessageCircleQuestion } from "lucide-react";
+import { Home, LayoutDashboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
