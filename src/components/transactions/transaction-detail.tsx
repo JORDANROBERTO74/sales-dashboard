@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsEmptyState } from "@/components/settings/states/settings-empty-state";
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { CircleCheckIcon, Undo2Icon } from "lucide-react";
-import { TRANSACTION_STATUS_PAID } from "@/lib/transactions/transaction-status";
+import { TRANSACTION_STATUS_PAID, TRANSACTION_STATUS_PAYOUT_PENDING } from "@/lib/transactions/transaction-status";
 
 type TransactionDetailProps = {
   transactionId: string;
@@ -90,7 +90,22 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
   })();
   const assignedSellerLabel = row.assignment?.seller?.full_name || row.assignment?.seller?.email || "—";
   const isPaid = row.transaction_status === TRANSACTION_STATUS_PAID;
+  const isPending = row.transaction_status === TRANSACTION_STATUS_PAYOUT_PENDING;
   const canManagePaidStatus = isAdminLike;
+
+  const transactionStatusLabel = useMemo(() => {
+    if (isPending) return "Pendiente";
+    if (isPaid) return "Pagado";
+    if (isFundsAvailable) return "Disponible";
+    return "Retenida";
+  }, [isPending, isPaid, isFundsAvailable]);
+
+  const transactionStatusBadgeVariant = useMemo((): "default" | "secondary" | "warning" | "success" => {
+    if (isPending) return "warning";
+    if (isPaid) return "success";
+    if (isFundsAvailable) return "default";
+    return "secondary";
+  }, [isPending, isPaid, isFundsAvailable]);
 
   return (
     <div className="space-y-4">
@@ -102,9 +117,7 @@ export function TransactionDetail({ transactionId }: TransactionDetailProps) {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={isPaid ? "default" : isFundsAvailable ? "default" : "secondary"}>
-                {isPaid ? "Pagado" : isFundsAvailable ? "Disponible" : "Retenido"}
-              </Badge>
+              <Badge variant={transactionStatusBadgeVariant}>{transactionStatusLabel}</Badge>
             </div>
             {canManagePaidStatus ? (
               !isPaid ? (
