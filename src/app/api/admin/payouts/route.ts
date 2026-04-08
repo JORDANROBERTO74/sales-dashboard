@@ -6,12 +6,17 @@ import type { PayoutTransactionSnapshotItem } from "@/lib/payouts/payout-transac
 import {
   TRANSACTION_STATUS_PAYOUT_PENDING,
   TRANSACTION_STATUS_RETIRABLE,
+  isTransactionStatusRetirableForPayout,
 } from "@/lib/transactions/transaction-status";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
 import type { PayoutMethod, PayoutRow, PayoutStatus } from "@/types/payouts";
 
-const PAYOUT_ALLOWED_ROLES = [UserRole.OWNER, UserRole.ADMIN, UserRole.SELLER] as const;
+const PAYOUT_ALLOWED_ROLES = [
+  UserRole.OWNER,
+  UserRole.ADMIN,
+  UserRole.SELLER,
+] as const;
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -95,7 +100,9 @@ function parseDateEnd(value: string): string | null {
   return date.toISOString();
 }
 
-function parseNullableFiniteNumber(value: number | string | null | undefined): number | null {
+function parseNullableFiniteNumber(
+  value: number | string | null | undefined,
+): number | null {
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -114,8 +121,12 @@ function toPayoutRow(row: PayoutQueryRow): PayoutRow {
     seller_email: String(user?.email ?? ""),
     seller_phone: user?.phone ?? null,
     stripe_account_id: String(row.stripe_account_id ?? ""),
-    stripe_account_external_id: String(account?.stripe_account_external_id ?? ""),
-    stripe_account_display_name: String(account?.display_name ?? "Cuenta sin nombre"),
+    stripe_account_external_id: String(
+      account?.stripe_account_external_id ?? "",
+    ),
+    stripe_account_display_name: String(
+      account?.display_name ?? "Cuenta sin nombre",
+    ),
     amount: Number(row.amount ?? 0),
     currency: "usd",
     payout_method: (row.payout_method ?? "binance") as PayoutMethod,
@@ -171,7 +182,8 @@ export async function GET(request: NextRequest) {
   const end = start + pageSize - 1;
   const supabase = createAdminClient();
 
-  const fromIso = periodPreset === "always" || !from ? null : parseDateStart(from);
+  const fromIso =
+    periodPreset === "always" || !from ? null : parseDateStart(from);
   const toIso = periodPreset === "always" || !to ? null : parseDateEnd(to);
   if ((from && !fromIso) || (to && !toIso)) {
     return NextResponse.json(
@@ -199,13 +211,19 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
     if (accountError) {
       return NextResponse.json(
-        { error: accountError.message, error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED" },
+        {
+          error: accountError.message,
+          error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED",
+        },
         { status: 500 },
       );
     }
     if (!accountData?.id) {
       return NextResponse.json(
-        { error: "Cuenta Stripe no encontrada", error_code: "INVALID_STRIPE_ACCOUNT" },
+        {
+          error: "Cuenta Stripe no encontrada",
+          error_code: "INVALID_STRIPE_ACCOUNT",
+        },
         { status: 400 },
       );
     }
@@ -281,14 +299,16 @@ export async function GET(request: NextRequest) {
 
   const { data: sellersData, error: sellersError } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       id,
       full_name,
       email,
       roles:role_id!inner (
         role_name
       )
-    `)
+    `,
+    )
     .eq("is_active", true)
     .eq("onboarding_completed", true)
     .in("roles.role_name", [...PAYOUT_ALLOWED_ROLES])
@@ -301,11 +321,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data: accountOptionsData, error: accountOptionsError } = await supabase
-    .from("stripe_accounts")
-    .select("id, stripe_account_external_id, display_name")
-    .eq("is_active", true)
-    .order("display_name", { ascending: true });
+  const { data: accountOptionsData, error: accountOptionsError } =
+    await supabase
+      .from("stripe_accounts")
+      .select("id, stripe_account_external_id, display_name")
+      .eq("is_active", true)
+      .order("display_name", { ascending: true });
   if (accountOptionsError) {
     return NextResponse.json(
       {
@@ -377,7 +398,10 @@ export async function POST(request: NextRequest) {
   const uniqueTxIds = [...new Set(stripeTransactionIds)];
   if (uniqueTxIds.length !== stripeTransactionIds.length) {
     return NextResponse.json(
-      { error: "No repitas transacciones en la selección", error_code: "DUPLICATE_TRANSACTION_IDS" },
+      {
+        error: "No repitas transacciones en la selección",
+        error_code: "DUPLICATE_TRANSACTION_IDS",
+      },
       { status: 400 },
     );
   }
@@ -399,7 +423,8 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json(
       {
-        error: "Solo owners y admins pueden realizar retiros en la cuenta Vascruz",
+        error:
+          "Solo owners y admins pueden realizar retiros en la cuenta Vascruz",
         error_code: "VASCRUZ_PAYOUT_FORBIDDEN",
       },
       { status: 403 },
@@ -409,26 +434,34 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: payoutUserData, error: payoutUserError } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       id,
       is_active,
       roles:role_id!inner (
         role_name
       )
-    `)
+    `,
+    )
     .eq("id", userId)
     .eq("is_active", true)
     .in("roles.role_name", [...PAYOUT_ALLOWED_ROLES])
     .maybeSingle();
   if (payoutUserError) {
     return NextResponse.json(
-      { error: payoutUserError.message, error_code: "PAYOUT_USER_LOOKUP_FAILED" },
+      {
+        error: payoutUserError.message,
+        error_code: "PAYOUT_USER_LOOKUP_FAILED",
+      },
       { status: 500 },
     );
   }
   if (!payoutUserData?.id) {
     return NextResponse.json(
-      { error: "Usuario inválido, inactivo o sin rol permitido", error_code: "INVALID_PAYOUT_USER" },
+      {
+        error: "Usuario inválido, inactivo o sin rol permitido",
+        error_code: "INVALID_PAYOUT_USER",
+      },
       { status: 400 },
     );
   }
@@ -474,13 +507,19 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   if (accountError) {
     return NextResponse.json(
-      { error: accountError.message, error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED" },
+      {
+        error: accountError.message,
+        error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED",
+      },
       { status: 500 },
     );
   }
   if (!accountData?.id) {
     return NextResponse.json(
-      { error: "Cuenta Stripe no encontrada", error_code: "INVALID_STRIPE_ACCOUNT" },
+      {
+        error: "Cuenta Stripe no encontrada",
+        error_code: "INVALID_STRIPE_ACCOUNT",
+      },
       { status: 400 },
     );
   }
@@ -545,7 +584,8 @@ export async function POST(request: NextRequest) {
     if (row.stripe_account_id !== accountData.id) {
       return NextResponse.json(
         {
-          error: "Todas las transacciones deben pertenecer a la cuenta Stripe del retiro",
+          error:
+            "Todas las transacciones deben pertenecer a la cuenta Stripe del retiro",
           error_code: "PAYOUT_TX_ACCOUNT_MISMATCH",
         },
         { status: 400 },
@@ -565,7 +605,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (row.transaction_status !== TRANSACTION_STATUS_RETIRABLE) {
+    if (!isTransactionStatusRetirableForPayout(row.transaction_status)) {
       return NextResponse.json(
         {
           error: "Alguna transacción ya no está disponible para retiro",
@@ -579,7 +619,8 @@ export async function POST(request: NextRequest) {
       if (!row.funds_available_at) {
         return NextResponse.json(
           {
-            error: "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
+            error:
+              "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
             error_code: "PAYOUT_TX_FUNDS_NOT_AVAILABLE",
           },
           { status: 400 },
@@ -589,7 +630,8 @@ export async function POST(request: NextRequest) {
       if (Number.isNaN(t) || t > Date.now()) {
         return NextResponse.json(
           {
-            error: "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
+            error:
+              "Solo se pueden retirar comisiones con fondos ya liberados en Stripe",
             error_code: "PAYOUT_TX_FUNDS_NOT_AVAILABLE",
           },
           { status: 400 },
@@ -600,7 +642,10 @@ export async function POST(request: NextRequest) {
     const commission = Number(assignment.commission_amount ?? 0);
     if (!Number.isFinite(commission) || commission <= 0) {
       return NextResponse.json(
-        { error: "Comisión inválida en una de las transacciones", error_code: "INVALID_COMMISSION_AMOUNT" },
+        {
+          error: "Comisión inválida en una de las transacciones",
+          error_code: "INVALID_COMMISSION_AMOUNT",
+        },
         { status: 400 },
       );
     }
@@ -618,7 +663,10 @@ export async function POST(request: NextRequest) {
 
   if (computedAmount <= 0) {
     return NextResponse.json(
-      { error: "El monto total del retiro debe ser mayor a cero", error_code: "INVALID_PAYOUT_AMOUNT" },
+      {
+        error: "El monto total del retiro debe ser mayor a cero",
+        error_code: "INVALID_PAYOUT_AMOUNT",
+      },
       { status: 400 },
     );
   }
@@ -633,11 +681,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // NULL y '' son equivalentes para “retirable”; .eq('', '') no matchea NULL en Postgres.
+  const retirableForLockFilter = `transaction_status.is.null,transaction_status.eq.${TRANSACTION_STATUS_RETIRABLE}`;
   const { data: lockedRows, error: lockError } = await admin
     .from("stripe_transactions")
     .update({ transaction_status: TRANSACTION_STATUS_PAYOUT_PENDING })
     .in("id", uniqueTxIds)
-    .eq("transaction_status", TRANSACTION_STATUS_RETIRABLE)
+    .or(retirableForLockFilter)
     .select("id");
 
   if (lockError) {
@@ -650,7 +700,8 @@ export async function POST(request: NextRequest) {
   if (!lockedRows || lockedRows.length !== uniqueTxIds.length) {
     return NextResponse.json(
       {
-        error: "No se pudieron reservar todas las transacciones (posible conflicto concurrente)",
+        error:
+          "No se pudieron reservar todas las transacciones (posible conflicto concurrente)",
         error_code: "PAYOUT_TX_LOCK_CONFLICT",
       },
       { status: 409 },
@@ -670,7 +721,8 @@ export async function POST(request: NextRequest) {
       created_by: auth.profileId,
       transactions: snapshot,
     })
-    .select(`
+    .select(
+      `
       id,
       user_id,
       transactions,
@@ -696,7 +748,8 @@ export async function POST(request: NextRequest) {
         stripe_account_external_id,
         display_name
       )
-    `)
+    `,
+    )
     .single();
 
   if (error) {
@@ -710,5 +763,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ row: toPayoutRow(data as PayoutQueryRow) }, { status: 200 });
+  return NextResponse.json(
+    { row: toPayoutRow(data as PayoutQueryRow) },
+    { status: 200 },
+  );
 }
