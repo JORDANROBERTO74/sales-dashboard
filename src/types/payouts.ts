@@ -10,6 +10,8 @@ export type WithdrawableTransactionRow = {
   customer_name: string | null;
   commission_amount: number;
   assignment_id: string;
+  eligible_for_payout: boolean;
+  ineligibility_reason: string | null;
 };
 
 export type WithdrawableTransactionsResponse = {

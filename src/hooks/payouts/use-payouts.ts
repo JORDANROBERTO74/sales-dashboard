@@ -131,12 +131,14 @@ async function fetchWithdrawableTransactions(
   accountExternalId: string,
   page = 1,
   pageSize = 100,
+  scope: "all" | "withdrawable" = "all",
 ) {
   const params = new URLSearchParams({
     sellerUserId,
     accountExternalId,
     page: String(page),
     pageSize: String(pageSize),
+    scope,
   });
   return requestJson<WithdrawableTransactionsResponse>(
     `/api/admin/payouts/withdrawable-transactions?${params.toString()}`,
@@ -232,6 +234,7 @@ export function useInfiniteWithdrawablePayoutTransactions(
   accountExternalId: string,
   enabled: boolean,
   pageSize: number = DEFAULT_WITHDRAWABLE_PAGE_SIZE,
+  scope: "all" | "withdrawable" = "all",
 ) {
   return useInfiniteQuery({
     queryKey: [
@@ -242,6 +245,7 @@ export function useInfiniteWithdrawablePayoutTransactions(
       sellerUserId,
       accountExternalId,
       pageSize,
+      scope,
     ],
     queryFn: ({ pageParam }) =>
       fetchWithdrawableTransactions(
@@ -249,6 +253,7 @@ export function useInfiniteWithdrawablePayoutTransactions(
         accountExternalId,
         pageParam as number,
         pageSize,
+        scope,
       ),
     enabled: Boolean(sellerUserId) && enabled,
     initialPageParam: 1,

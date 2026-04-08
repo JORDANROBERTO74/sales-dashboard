@@ -1,4 +1,4 @@
-function safeNumber(value: number): number {
+export function safeNumber(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return value;
 }
@@ -10,6 +10,28 @@ export function formatUsdFromCents(cents: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(safeNumber(cents) / 100);
+}
+
+/** Monto en BOB a partir de centavos USD recibidos y tipo de cambio BOB por 1 USD. */
+export function formatPayoutBobAmount(
+  receivedAmountCents: number,
+  exchangeRateBob: number | null | undefined,
+): string {
+  if (
+    exchangeRateBob == null ||
+    !Number.isFinite(exchangeRateBob) ||
+    exchangeRateBob <= 0
+  ) {
+    return "—";
+  }
+  const bob = (safeNumber(receivedAmountCents) * safeNumber(exchangeRateBob)) / 100;
+  if (!Number.isFinite(bob)) return "—";
+  return new Intl.NumberFormat("es-BO", {
+    style: "currency",
+    currency: "BOB",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(bob);
 }
 
 export function formatDateTime(value?: string | null): string {

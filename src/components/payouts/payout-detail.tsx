@@ -14,7 +14,11 @@ import { usePayoutDetail, useUpdatePayout } from "@/hooks/payouts/use-payouts";
 import { parsePayoutTransactionsJson } from "@/lib/payouts/payout-transaction-snapshot";
 import { buildWhatsAppPayoutUrl } from "@/lib/payouts/whatsapp";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
-import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
+import {
+  formatDateTime,
+  formatPayoutBobAmount,
+  formatUsdFromCents,
+} from "@/lib/transactions/formatters";
 import type { PayoutMethod, PayoutPaymentMethodDetail, PayoutStatus } from "@/types/payouts";
 import WhatsAppIcon from "../ui/whatsAppIcon";
 
@@ -255,10 +259,12 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
             <span className="text-muted-foreground">Moneda: </span>
             {row.currency.toUpperCase()}
           </p>
-          <p>
-            <span className="text-muted-foreground">Referencia: </span>
-            {row.reference || "—"}
-          </p>
+          {row.payout_method === "bank_qr" ? (
+            <p>
+              <span className="text-muted-foreground">Monto BOB: </span>
+              {formatPayoutBobAmount(row.received_amount, row.exchange_rate_bob)}
+            </p>
+          ) : null}
           <p>
             <span className="text-muted-foreground">Notas: </span>
             {row.notes || "—"}

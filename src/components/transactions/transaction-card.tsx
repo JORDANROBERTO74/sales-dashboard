@@ -28,7 +28,7 @@ import {
 } from "@/hooks/transactions/use-transactions";
 import { isStripeTransactionAssignmentFrozen } from "@/lib/transactions/assignment-cutoff";
 import type { SellerOption, StripeTransactionRow } from "@/types/transactions";
-import { TRANSACTION_STATUS_PAID } from "@/lib/transactions/transaction-status";
+import { TRANSACTION_STATUS_PAID, TRANSACTION_STATUS_PAYOUT_PENDING } from "@/lib/transactions/transaction-status";
 
 type TransactionCardProps = {
   row: StripeTransactionRow;
@@ -69,6 +69,7 @@ export function TransactionCard({
   const isAssignmentCurrentUser = Boolean(currentUserId && row.assignment?.user_id === currentUserId);
   const canUnassign = canOperateAssignment && canSellerOperate && (!isSeller || isAssignmentCurrentUser);
   const isPaid = row.transaction_status === TRANSACTION_STATUS_PAID;
+  const isPending = row.transaction_status === TRANSACTION_STATUS_PAYOUT_PENDING;
 
   const sellerLabel = useMemo(() => {
     const seller = row.assignment?.seller;
@@ -82,6 +83,20 @@ export function TransactionCard({
     if (Number.isNaN(availableAt.getTime())) return false;
     return availableAt.getTime() <= Date.now();
   }, [row.funds_available_at]);
+
+  const transactionStatusLabel = useMemo(() => {
+    if (isPending) return "Pendiente";
+    if (isPaid) return "Pagado";
+    if (isFundsAvailable) return "Disponible";
+    return "Retenida";
+  }, [isPending, isPaid, isFundsAvailable]);
+
+  const transactionStatusBadgeVariant = useMemo((): "default" | "secondary" | "warning" | "success" => {
+    if (isPending) return "warning";
+    if (isPaid) return "success";
+    if (isFundsAvailable) return "default";
+    return "secondary";
+  }, [isPending, isPaid, isFundsAvailable]);
 
   const handleUnassign = () => {
     if (!row.assignment) return;
@@ -144,9 +159,7 @@ export function TransactionCard({
           </p>
           <p className="text-xs text-muted-foreground">{getTransactionTypeLabel(row.transaction_type)}</p>
         </div>
-        <Badge variant={isPaid ? "default" : isFundsAvailable ? "default" : "secondary"}>
-          {isPaid ? "Pagado" : isFundsAvailable ? "Disponible" : "Retenida"}
-        </Badge>
+        <Badge variant={transactionStatusBadgeVariant}>{transactionStatusLabel}</Badge>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-xs">

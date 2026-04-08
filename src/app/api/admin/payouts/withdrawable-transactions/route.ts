@@ -3,7 +3,13 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireApiAnyRole } from "@/lib/auth/api-auth";
 import { UserRole } from "@/lib/auth/permissions";
+import {
+  TRANSACTION_STATUS_PAYOUT_PENDING,
+  TRANSACTION_STATUS_RETIRABLE,
+  TRANSACTION_STATUS_WITHDRAWN,
+} from "@/lib/transactions/transaction-status";
 import type { WithdrawableTransactionRow } from "@/types/payouts";
+
 const querySchema = z.object({
   sellerUserId: z.string().uuid(),
   accountExternalId: z
@@ -13,6 +19,8 @@ const querySchema = z.object({
     .regex(/^acct_.+$/),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  /** all: todas las transacciones asignadas al seller; withdrawable: solo elegibles (legacy). */
+  scope: z.enum(["all", "withdrawable"]).default("all"),
 });
 
 type AssignmentInner = {
@@ -25,6 +33,39 @@ function firstAssignment(value: AssignmentInner | AssignmentInner[] | null | und
   if (!value) return null;
   if (Array.isArray(value)) return value[0] ?? null;
   return value;
+}
+
+function payoutEligibility(
+  isVascruz: boolean,
+  transactionStatus: string | null | undefined,
+  fundsAvailableAt: string | null | undefined,
+  commission: number,
+): { eligible: boolean; reason: string | null } {
+  if (!Number.isFinite(commission) || commission <= 0) {
+    return { eligible: false, reason: "Sin comisión asignada" };
+  }
+  const status = transactionStatus ?? "";
+  if (status !== TRANSACTION_STATUS_RETIRABLE) {
+    if (status === TRANSACTION_STATUS_PAYOUT_PENDING) {
+      return { eligible: false, reason: "En retiro pendiente" };
+    }
+    if (status === TRANSACTION_STATUS_WITHDRAWN) {
+      return { eligible: false, reason: "Ya retirada" };
+    }
+    if (status.length > 0) {
+      return { eligible: false, reason: "Estado no retirable" };
+    }
+  }
+  if (!isVascruz) {
+    if (!fundsAvailableAt) {
+      return { eligible: false, reason: "Fondos aún no liberados" };
+    }
+    const t = new Date(fundsAvailableAt).getTime();
+    if (Number.isNaN(t) || t > Date.now()) {
+      return { eligible: false, reason: "Fondos aún no liberados" };
+    }
+  }
+  return { eligible: true, reason: null };
 }
 
 export async function GET(request: NextRequest) {
@@ -48,7 +89,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { sellerUserId, accountExternalId, page, pageSize } = parsed.data;
+  const { sellerUserId, accountExternalId, page, pageSize, scope } = parsed.data;
 
   if (auth.role === UserRole.SELLER && sellerUserId !== auth.profileId) {
     return NextResponse.json(
@@ -81,6 +122,7 @@ export async function GET(request: NextRequest) {
   const isVascruz = accountExternalId === "acct_vascruz";
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
+  const listAllAssigned = scope === "all";
 
   let query = supabase
     .from("stripe_transactions")
@@ -102,13 +144,20 @@ export async function GET(request: NextRequest) {
     )
     .eq("stripe_account_id", accountData.id)
     .eq("transaction_assignments.user_id", sellerUserId)
-    .eq("transaction_status", "")
     .order("stripe_created_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .range(start, end);
 
-  if (!isVascruz) {
-    query = query.not("funds_available_at", "is", null).lte("funds_available_at", new Date().toISOString());
+  if (listAllAssigned) {
+    // Excluir solo 'withdrawn' sin perder NULL ni '': (NOT eq withdrawn) OR (IS NULL).
+    query = query.or(
+      `transaction_status.not.eq.${TRANSACTION_STATUS_WITHDRAWN},transaction_status.is.null`,
+    );
+  } else {
+    query = query.eq("transaction_status", "");
+    if (!isVascruz) {
+      query = query.not("funds_available_at", "is", null).lte("funds_available_at", new Date().toISOString());
+    }
   }
 
   const { data, error, count } = await query;
@@ -130,15 +179,21 @@ export async function GET(request: NextRequest) {
       funds_available_at: string | null;
       transaction_assignments: AssignmentInner | AssignmentInner[];
     };
-    if (!isVascruz) {
-      if (!row.funds_available_at) continue;
-      const t = new Date(row.funds_available_at).getTime();
-      if (Number.isNaN(t) || t > Date.now()) continue;
-    }
     const assignment = firstAssignment(row.transaction_assignments);
     if (!assignment?.id || assignment.user_id !== sellerUserId) continue;
+    if ((row.transaction_status ?? "") === TRANSACTION_STATUS_WITHDRAWN) continue;
     const commission = Number(assignment.commission_amount ?? 0);
-    if (commission <= 0) continue;
+    const { eligible, reason } = payoutEligibility(
+      isVascruz,
+      row.transaction_status,
+      row.funds_available_at,
+      commission,
+    );
+
+    if (!listAllAssigned) {
+      if (!eligible) continue;
+    }
+
     rows.push({
       id: row.id,
       stripe_id: row.stripe_id,
@@ -146,6 +201,8 @@ export async function GET(request: NextRequest) {
       customer_name: row.customer_name,
       commission_amount: commission,
       assignment_id: assignment.id,
+      eligible_for_payout: eligible,
+      ineligibility_reason: reason,
     });
   }
 
