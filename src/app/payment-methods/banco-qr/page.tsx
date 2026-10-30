@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { PublicTutorialPage } from "@/components/payment-methods/public-tutorial-page";
 import { PAYMENT_METHOD_TUTORIALS } from "@/components/payment-methods/tutorial-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
-  title: "Tutorial Banco QR | J-Node Sales",
-  description:
-    "Guia para configurar Banco QR en J-Node Sales con datos bancarios y carga de imagen QR.",
+  title: `Tutorial Banco QR | ${BRAND.appName}`,
+  description: `Guia para configurar Banco QR en ${BRAND.appName} con datos bancarios y carga de imagen QR.`,
 };
 
 export default function BancoQrTutorialPage() {

@@ -18,6 +18,7 @@ import { NavUser } from "@/components/ui/nav-user";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/hooks/auth/use-user";
 import { getAdminNavForUser } from "@/lib/navigation/admin-nav";
+import { BRAND } from "@/config/brand";
 import {
   Sidebar,
   SidebarContent,
@@ -108,10 +109,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
             <Store className="size-4" />
           </div>
           <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-            <span className="truncate font-semibold text-sm">J-Node</span>
-            <span className="truncate text-xs text-sidebar-foreground/70">
-              Sales
-            </span>
+            <span className="truncate font-semibold text-sm">{BRAND.appName}</span>
           </div>
         </Link>
       </SidebarHeader>

@@ -14,11 +14,17 @@ const TRANSACTIONS_ALLOWED_ROLES = [
   UserRole.VIEWER,
 ];
 
-export default async function AdminTransactionsJnodePage() {
+export default async function AdminTransactionsAccountPage({
+  params,
+}: {
+  params: Promise<{ accountExternalId: string }>;
+}) {
   await requireAnyRole(TRANSACTIONS_ALLOWED_ROLES, {
     redirectTo: "/auth/login",
     unauthorizedRedirectTo: "/auth/unauthorized",
   });
+
+  const { accountExternalId } = await params;
 
   return (
     <div className="p-4 md:p-6 space-y-5 md:space-y-6">
@@ -30,15 +36,20 @@ export default async function AdminTransactionsJnodePage() {
                 <ArrowLeft />
               </Link>
             </Button>
-            <h1 className="text-xl md:text-2xl font-bold">Transacciones - JNode</h1>
+            <h1 className="text-xl md:text-2xl font-bold">
+              Transacciones - {accountExternalId}
+            </h1>
           </div>
           <p className="text-sm text-muted-foreground">
             Revisa transacciones, asigna ventas a sellers y sincroniza datos desde Stripe.
           </p>
         </div>
-        <SyncTransactionsButton accountExternalId="acct_jnode" />
+        <SyncTransactionsButton accountExternalId={accountExternalId} />
       </div>
-      <TransactionsPanel accountExternalId="acct_jnode" accountRouteSegment="jnode" />
+      <TransactionsPanel
+        accountExternalId={accountExternalId}
+        accountRouteSegment={accountExternalId}
+      />
     </div>
   );
 }

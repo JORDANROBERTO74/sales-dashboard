@@ -389,7 +389,7 @@ export async function PATCH(
   let currentPayoutQuery = supabase
     .from("seller_payouts")
     .select(
-      "id, user_id, status, payout_method, transactions, stripe_accounts:stripe_account_id(stripe_account_external_id)",
+      "id, user_id, status, payout_method, transactions, stripe_accounts:stripe_account_id(stripe_account_external_id, admin_only_payouts)",
     )
     .eq("id", id);
   if (auth.role === UserRole.SELLER) {
@@ -410,20 +410,20 @@ export async function PATCH(
   }
 
   const account = firstItem(
-    (currentPayout as { stripe_accounts?: { stripe_account_external_id?: string } | { stripe_account_external_id?: string }[] })
+    (currentPayout as { stripe_accounts?: { stripe_account_external_id?: string; admin_only_payouts?: boolean } | { stripe_account_external_id?: string; admin_only_payouts?: boolean }[] })
       .stripe_accounts,
   );
-  const stripeAccountExternalId = account?.stripe_account_external_id;
+  const adminOnlyPayouts = account?.admin_only_payouts ?? false;
 
   if (
-    stripeAccountExternalId === "acct_vascruz" &&
+    adminOnlyPayouts &&
     auth.role !== UserRole.OWNER &&
     auth.role !== UserRole.ADMIN
   ) {
     return NextResponse.json(
       {
-        error: "Solo owners y admins pueden gestionar retiros en la cuenta Vascruz",
-        error_code: "VASCRUZ_PAYOUT_FORBIDDEN",
+        error: "Solo owners y admins pueden gestionar retiros en esta cuenta",
+        error_code: "ACCOUNT_PAYOUT_FORBIDDEN",
       },
       { status: 403 },
     );

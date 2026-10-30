@@ -19,6 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Building2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { BRAND } from "@/config/brand";
 
 // Forgot password validation schema
 const forgotPasswordSchema = z.object({
@@ -65,7 +66,7 @@ export function ForgotPasswordForm({
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
           <Building2 className="size-6" />
         </div>
-        <h1 className="text-xl font-bold tracking-tight">J-Node Sales</h1>
+        <h1 className="text-xl font-bold tracking-tight">{BRAND.appName}</h1>
       </div>
 
       {isSuccess ? (

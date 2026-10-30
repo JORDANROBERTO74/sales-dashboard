@@ -9,6 +9,7 @@ import {
   getUserInitials,
   UserMenuDropdown,
 } from "@/components/user/user-menu-dropdown";
+import { BRAND } from "@/config/brand";
 
 export function LandingHeader() {
   const { data: userProfile } = useUser();
@@ -45,7 +46,7 @@ export function LandingHeader() {
           <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
             <Building2 className="size-4" />
           </div>
-          <span className="font-bold text-lg truncate">J-Node Sales</span>
+          <span className="font-bold text-lg truncate">{BRAND.appName}</span>
         </Link>
 
         {userProfile ? (

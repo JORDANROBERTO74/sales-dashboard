@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Providers } from "@/app/providers";
 import { ConditionalLayout } from "@/components/conditional-layout";
 import { Toaster } from "@/components/ui/sonner";
+import { BRAND } from "@/config/brand";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -23,9 +24,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "J-Node Sales",
+  title: BRAND.appName,
   description:
-    "Administrador de cobros y ventas de la empresa J-Node para visualizar métricas y el detalle de cada transacción.",
+    "Panel de cobros y ventas para visualizar métricas y el detalle de cada transacción.",
 };
 
 export default async function RootLayout({

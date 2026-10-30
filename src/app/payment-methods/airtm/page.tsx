@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { PublicTutorialPage } from "@/components/payment-methods/public-tutorial-page";
 import { PAYMENT_METHOD_TUTORIALS } from "@/components/payment-methods/tutorial-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
-  title: "Tutorial Airtm | J-Node Sales",
-  description:
-    "Guia para configurar Airtm en J-Node Sales con datos ACH y habilitacion de retiros.",
+  title: `Tutorial Airtm | ${BRAND.appName}`,
+  description: `Guia para configurar Airtm en ${BRAND.appName} con datos ACH y habilitacion de retiros.`,
 };
 
 export default function AirtmTutorialPage() {

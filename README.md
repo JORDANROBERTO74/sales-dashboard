@@ -1,6 +1,6 @@
-# J-Node Sales
+# Sales Dashboard
 
-Plataforma administrativa de cobros y ventas para J-Node, construida con Next.js, Supabase y Stripe (multi-cuenta).
+Plantilla de dashboard de cobros y ventas construida con Next.js, Supabase y Stripe (multi-cuenta, white label).
 
 ## Tabla de contenido
 
@@ -15,21 +15,24 @@ Plataforma administrativa de cobros y ventas para J-Node, construida con Next.js
 - [Scripts disponibles](#scripts-disponibles)
 - [Flujos criticos del sistema](#flujos-criticos-del-sistema)
 - [Permisos y seguridad](#permisos-y-seguridad)
+- [White label / personalizacion](#white-label--personalizacion)
+- [Cuentas Stripe multiples](#cuentas-stripe-multiples)
 - [Contribucion](#contribucion)
 - [Troubleshooting](#troubleshooting)
 - [Estado actual y limitaciones](#estado-actual-y-limitaciones)
+- [Licencia](#licencia)
 
 ## Vision general
 
-J-Node Sales centraliza operaciones de:
+Sales Dashboard centraliza operaciones de:
 
 - autenticacion y acceso por roles
 - visualizacion de transacciones y dashboard
-- asignacion de transacciones a sellers
+- asignacion de transacciones a vendedores
 - gestion de saldos y payouts
 - configuracion de perfil, equipo y metodos de pago
 
-Este README esta orientado a colaboradores externos que necesitan entender el sistema rapidamente y empezar a contribuir con bajo riesgo.
+Este README esta orientado a desarrolladores que necesitan entender el sistema rapidamente y desplegarlo como plantilla white label.
 
 ## Arquitectura
 
@@ -38,7 +41,7 @@ flowchart LR
   user["DeveloperUser"] --> app["NextAppRouter"]
   app --> api["ApiRoutes"]
   api --> supabase["SupabaseAuthDBStorage"]
-  api --> stripe["StripeAccountsAB"]
+  api --> stripe["StripeAccounts"]
   stripe --> webhook["StripeWebhookSync"]
   webhook --> api
   supabase --> app
@@ -56,7 +59,7 @@ Resumen de capas:
 - **Framework**: Next.js 15 (App Router)
 - **UI**: React 18 + Tailwind CSS + Radix/shadcn
 - **Datos y auth**: Supabase SSR + Supabase JS
-- **Pagos**: Stripe (cuentas A/B)
+- **Pagos**: Stripe (multi-cuenta, cuentas conectadas)
 - **Estado remoto**: TanStack React Query
 - **Validacion**: Zod + React Hook Form
 - **Tipado**: TypeScript (modo strict)
@@ -86,13 +89,10 @@ Resumen de capas:
 
 **Admin**
 
-- `/admin/onboarding`
 - `/admin/dashboard`
 - `/admin/transactions`
-- `/admin/transactions/jnode`
-- `/admin/transactions/jnode/[id]`
-- `/admin/transactions/vascruz`
-- `/admin/transactions/vascruz/[id]`
+- `/admin/transactions/[accountExternalId]`
+- `/admin/transactions/[accountExternalId]/[id]`
 - `/admin/balances`
 - `/admin/balances/payouts`
 - `/admin/payouts/[id]`
@@ -148,6 +148,7 @@ Resumen de capas:
 - Auth y permisos: `src/lib/auth/*`
 - Cifrado metodos de pago: `src/lib/crypto.ts`, `src/lib/payment-methods/crypto.ts`
 - Navegacion por rol: `src/lib/navigation/admin-nav.ts`
+- Configuracion de marca: `src/config/brand.ts`
 
 **Data layer frontend (`src/hooks`)**
 
@@ -159,21 +160,22 @@ Resumen de capas:
 - `src/hooks/settings/use-payment-methods.ts`
 - `src/hooks/settings/use-team-management.ts`
 - `src/hooks/auth/*`
+- `src/hooks/stripe/use-stripe-accounts.ts`
 
 ## Estructura del repositorio
 
 ```text
-jnode-sales/
+sales-dashboard/
   src/
     app/                  # Paginas y API routes (Next App Router)
     components/           # UI compartida y componentes de dominio
     hooks/                # Queries/mutations y estado de datos
     lib/                  # Auth, permisos, Stripe, Supabase, utilidades
+    config/               # Configuracion de marca (white label)
     middleware.ts         # Proteccion de rutas y redirects por sesion/rol
   public/                 # Assets estaticos
   supabase/
     schema.sql            # Esquema SQL, funciones y politicas RLS
-  docs/                   # Documentacion complementaria
   .env.example            # Plantilla de variables de entorno
 ```
 
@@ -182,7 +184,7 @@ jnode-sales/
 - Node.js 20+ (recomendado LTS)
 - npm
 - Proyecto Supabase con credenciales validas
-- Credenciales Stripe para cuentas configuradas
+- Credenciales Stripe para cuentas conectadas
 
 ## Onboarding local
 
@@ -221,6 +223,13 @@ Base oficial: `.env.example`.
 
 ### Requeridas para funcionamiento
 
+**App / White label**
+
+- `NEXT_PUBLIC_APP_NAME`: nombre de la aplicacion mostrado en la UI.
+- `NEXT_PUBLIC_COMPANY_NAME`: nombre de la empresa (opcional).
+- `NEXT_PUBLIC_SITE_URL`: URL base para enlaces absolutos.
+- `NEXT_PUBLIC_LOGO_URL`: URL del logo (opcional).
+
 **Supabase**
 
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -233,16 +242,8 @@ Base oficial: `.env.example`.
 
 **Stripe (multi-cuenta)**
 
-- `STRIPE_ACCOUNT_A_EXTERNAL_ID`
-- `STRIPE_ACCOUNT_A_SECRET_KEY`
-- `STRIPE_ACCOUNT_A_WEBHOOK_SECRET`
-- `STRIPE_ACCOUNT_B_EXTERNAL_ID`
-- `STRIPE_ACCOUNT_B_SECRET_KEY`
-- `STRIPE_ACCOUNT_B_WEBHOOK_SECRET`
-
-### Recomendadas
-
-- `NEXT_PUBLIC_SITE_URL`: recomendada para construir enlaces absolutos de invite/reset de forma consistente entre entornos.
+- `STRIPE_ACCOUNT_1_EXTERNAL_ID`, `STRIPE_ACCOUNT_1_SECRET_KEY`, `STRIPE_ACCOUNT_1_WEBHOOK_SECRET`
+- Puedes agregar `STRIPE_ACCOUNT_2_*`, `STRIPE_ACCOUNT_3_*`, etc. para cuentas adicionales.
 
 ### Notas de seguridad
 
@@ -285,6 +286,25 @@ Base oficial: `.env.example`.
 - Guards de API en `src/lib/auth/api-auth.ts`.
 - Politicas de datos en `supabase/schema.sql` (RLS y funciones SQL).
 - Proteccion adicional de rutas en `src/middleware.ts` y `src/lib/supabase/middleware.ts`.
+
+## White label / personalizacion
+
+La aplicacion esta disenada para ser re-marcada (white label) sin tocar el código fuente:
+
+1. Configura `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_COMPANY_NAME`, `NEXT_PUBLIC_SITE_URL` y `NEXT_PUBLIC_LOGO_URL` en `.env.local`.
+2. El nombre de la app se usa en titulos, meta tags, sidebar, header, landing y formularios de auth.
+3. Para cambiar el logo, reemplaza los assets en `public/` y configura `NEXT_PUBLIC_LOGO_URL`.
+4. Agrega una `LICENSE` al repositorio si lo publicas como open source.
+
+## Cuentas Stripe multiples
+
+El esquema de base de datos soporta N cuentas Stripe conectadas. No hay cuentas hardcodeadas:
+
+1. Crea cuentas Stripe desde la UI de administracion (`/admin/settings`) o inserta filas en `public.stripe_accounts`.
+2. Cada cuenta tiene un `stripe_account_external_id` (ej. `acct_...`) y un `display_name`.
+3. Las rutas de transacciones son dinámicas: `/admin/transactions/[accountExternalId]`.
+4. Las pestañas de balances y retiros se generan automáticamente desde las cuentas activas en la base de datos.
+5. Configura las variables de entorno `STRIPE_ACCOUNT_N_*` para cada cuenta que quieras sincronizar.
 
 ## Contribucion
 
@@ -331,8 +351,8 @@ Checklist minimo antes de abrir PR:
 
 - No hay script de tests en `package.json` actualmente.
 - `next.config.ts` usa configuracion minima por defecto.
-- Existen rutas contempladas en middleware/navegacion que pueden requerir consolidacion funcional en futuras iteraciones.
+- Algunas referencias de cuenta especifica en la lógica de payouts pueden requerir generalizacion adicional para despliegues con muchas cuentas.
 
----
+## Licencia
 
-Si necesitas una vista todavia mas profunda, la siguiente referencia principal es `supabase/schema.sql` para reglas de negocio y seguridad de datos.
+MIT License. Consulta el archivo `LICENSE` para más detalles.

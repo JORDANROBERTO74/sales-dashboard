@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { usePayoutDetail, useUpdatePayout } from "@/hooks/payouts/use-payouts";
 import { parsePayoutTransactionsJson } from "@/lib/payouts/payout-transaction-snapshot";
 import { buildWhatsAppPayoutUrl } from "@/lib/payouts/whatsapp";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
+import { createClient } from "@/lib/supabase/client";
 import {
   formatDateTime,
   formatPayoutBobAmount,
@@ -85,6 +86,26 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
     open: boolean;
     status: "cancelled" | "rejected";
   }>({ open: false, status: "cancelled" });
+  const [requiresFundsAvailable, setRequiresFundsAvailable] = useState<boolean>(
+    true,
+  );
+
+  useEffect(() => {
+    const loadAccountProps = async () => {
+      if (!payoutQuery.data?.row) return;
+      const supabase = createClient();
+      const { data: account } = await supabase
+        .from("stripe_accounts")
+        .select("requires_funds_available")
+        .eq(
+          "stripe_account_external_id",
+          payoutQuery.data.row.stripe_account_external_id,
+        )
+        .maybeSingle();
+      setRequiresFundsAvailable(account?.requires_funds_available ?? true);
+    };
+    void loadAccountProps();
+  }, [payoutQuery.data?.row]);
 
   if (payoutQuery.isLoading) {
     return <SettingsSectionSkeleton rows={3} compact showBadge />;
@@ -116,10 +137,11 @@ export function PayoutDetail({ payoutId }: PayoutDetailProps) {
   const receivedAmountToDisplay = row.status === "pending" ? 0 : row.received_amount;
   const paymentMethodFields = paymentMethod ? renderPaymentMethodFields(paymentMethod) : [];
   const isPendingRow = row.status === "pending";
-  const isVascruz = row.stripe_account_external_id === "acct_vascruz";
+
   const canComplete = isPendingRow && isAdminLike;
   const canCancel =
-    isPendingRow && (isVascruz ? isAdminLike : isAdminLike || isSeller);
+    isPendingRow &&
+    (requiresFundsAvailable ? isAdminLike : isAdminLike || isSeller);
   const canReject = isPendingRow && isAdminLike;
   const hasSellerPhone = Boolean(row.seller_phone?.match(/\d/));
   const canSeeNotifyButton = isAdminLike || (isSeller && isPendingRow);

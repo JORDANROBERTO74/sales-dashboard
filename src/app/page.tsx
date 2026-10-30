@@ -28,6 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useUser } from "@/hooks/auth/use-user";
+import { BRAND } from "@/config/brand";
 
 const stackItems = [
   { label: "Origen de datos", value: "Transacciones de Stripe centralizadas" },
@@ -152,7 +153,7 @@ export default function HomePage() {
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-16 md:py-24">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="secondary" className="rounded-full px-3">
-            J-Node Sales
+            {BRAND.appName}
           </Badge>
         </div>
 
@@ -161,7 +162,7 @@ export default function HomePage() {
             Gestiona Stripe, comisiones y retiros en un solo lugar.
           </h1>
           <p className="max-w-3xl text-lg text-muted-foreground md:text-xl">
-            J-Node Sales esta disenada para operaciones comerciales reales:
+            {BRAND.appName} esta disenada para operaciones comerciales reales:
             asignacion de transacciones, calculo de comisiones por seller,
             control de balances y ejecucion de payouts con trazabilidad.
           </p>

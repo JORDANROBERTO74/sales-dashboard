@@ -22,11 +22,11 @@ import {
   getActiveStripePaymentLinks,
   getDuplicateNameIds,
 } from "@/data/stripe-payment-links";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
-  title: "Servicios y pagos | J-Node Sales",
-  description:
-    "Enlaces de pago seguros con Stripe para contratar servicios profesionales de J-Node.",
+  title: `Servicios y pagos | ${BRAND.appName}`,
+  description: `Enlaces de pago seguros con Stripe para contratar servicios profesionales.`,
 };
 
 const howItWorks = [

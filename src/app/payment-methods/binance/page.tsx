@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { PublicTutorialPage } from "@/components/payment-methods/public-tutorial-page";
 import { PAYMENT_METHOD_TUTORIALS } from "@/components/payment-methods/tutorial-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
-  title: "Tutorial Binance | J-Node Sales",
-  description:
-    "Guia para configurar Binance en J-Node Sales con ID, codigo QR y activacion del metodo.",
+  title: `Tutorial Binance | ${BRAND.appName}`,
+  description: `Guia para configurar Binance en ${BRAND.appName} con ID, codigo QR y activacion del metodo.`,
 };
 
 export default function BinanceTutorialPage() {

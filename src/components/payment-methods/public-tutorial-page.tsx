@@ -171,7 +171,7 @@ export function PublicTutorialPage({
       <section className="mx-auto w-full max-w-6xl px-6 pb-8">
         <Card>
           <CardHeader>
-            <CardTitle>Como pegar los datos en J-Node</CardTitle>
+            <CardTitle>Como pegar los datos en la aplicacion</CardTitle>
             <CardDescription>
               Esta guia conecta los datos del proveedor con los campos del formulario en settings.
             </CardDescription>

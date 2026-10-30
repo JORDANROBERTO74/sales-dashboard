@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Home, LayoutDashboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/config/brand";
 
 export default function NotFound() {
   return (
@@ -23,7 +24,7 @@ export default function NotFound() {
 
       <div className="relative z-10 flex max-w-lg flex-col items-center text-center">
         <Badge variant="secondary" className="mb-6 rounded-full px-3">
-          J-Node Sales
+          {BRAND.appName}
         </Badge>
 
         <h1 className="text-balance text-3xl font-bold tracking-tight md:text-4xl">

@@ -39,7 +39,7 @@ function Calendar({
       captionLayout={captionLayout}
       locale={locale}
       formatters={{
-        formatMonthDropdown: (date) =>
+        formatMonthDropdown: (date: Date) =>
           date.toLocaleString(locale?.code, { month: "short" }),
         ...formatters,
       }}
@@ -134,7 +134,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }) => {
+        Root: ({ className, rootRef, ...props }: { className?: string; rootRef: React.Ref<HTMLDivElement>; [key: string]: unknown }) => {
           return (
             <div
               data-slot="calendar"
@@ -144,7 +144,7 @@ function Calendar({
             />
           )
         },
-        Chevron: ({ className, orientation, ...props }) => {
+        Chevron: ({ className, orientation, ...props }: { className?: string; orientation: "left" | "right" | "down"; [key: string]: unknown }) => {
           if (orientation === "left") {
             return (
               <ChevronLeftIcon className={cn("cn-rtl-flip size-4", className)} {...props} />
@@ -161,14 +161,16 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
-        DayButton: ({ ...props }) => (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        DayButton: (props: any) => (
           <CalendarDayButton locale={locale} {...props} />
         ),
-        WeekNumber: ({ children, ...props }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        WeekNumber: (props: any) => {
           return (
             <td {...props}>
               <div className="flex h-[var(--cell-size)] w-[var(--cell-size)] items-center justify-center text-center">
-                {children}
+                {props.children}
               </div>
             </td>
           )

@@ -11,11 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PAYMENT_METHOD_TUTORIAL_LIST } from "@/components/payment-methods/tutorial-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
-  title: "Metodos de pago | J-Node Sales",
-  description:
-    "Guia publica para configurar Binance, Airtm y Banco QR en J-Node Sales.",
+  title: `Metodos de pago | ${BRAND.appName}`,
+  description: `Guia publica para configurar metodos de pago en ${BRAND.appName}.`,
 };
 
 const tutorialIcons = {

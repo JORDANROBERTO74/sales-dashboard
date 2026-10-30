@@ -1,7 +1,8 @@
 {
-  "name": "j-node-sales",
-  "description": "Administrador de cobros y ventas de la empresa J-Node.",
-  "private": true,
+  "name": "sales-dashboard",
+  "description": "Plantilla de dashboard de cobros y ventas con Next.js, Supabase y Stripe (multi-cuenta, white label).",
+  "private": false,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
