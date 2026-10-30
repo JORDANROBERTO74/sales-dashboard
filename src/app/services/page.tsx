@@ -18,10 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getActiveStripePaymentLinks,
-  getDuplicateNameIds,
-} from "@/data/stripe-payment-links";
+import { getActiveStripePaymentLinks } from "@/data/stripe-payment-links";
 import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
@@ -52,7 +49,6 @@ const howItWorks = [
 
 export default function ServicesPage() {
   const links = getActiveStripePaymentLinks();
-  const duplicateNameIds = getDuplicateNameIds(links);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/40">
@@ -124,11 +120,7 @@ export default function ServicesPage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {links.map((item) => (
-            <StripePaymentLinkCard
-              key={item.id}
-              item={item}
-              showDuplicateNameHint={duplicateNameIds.has(item.id)}
-            />
+            <StripePaymentLinkCard key={item.id} item={item} />
           ))}
         </div>
       </section>

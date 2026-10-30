@@ -11,12 +11,10 @@ import React from "react";
 
 type StripePaymentLinkCardProps = {
   item: StripePaymentLinkItem;
-  showDuplicateNameHint: boolean;
 };
 
 export function StripePaymentLinkCard({
   item,
-  showDuplicateNameHint,
 }: StripePaymentLinkCardProps) {
   async function handleCopy(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
