@@ -134,7 +134,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }: { className?: string; rootRef?: React.Ref<HTMLDivElement>; [key: string]: unknown }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Root: ({ className, rootRef, ...props }: any) => {
           return (
             <div
               data-slot="calendar"
@@ -144,7 +145,8 @@ function Calendar({
             />
           )
         },
-        Chevron: ({ className, orientation, ...props }: { className?: string; orientation: "left" | "right" | "down"; [key: string]: unknown }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Chevron: ({ className, orientation, ...props }: any) => {
           if (orientation === "left") {
             return (
               <ChevronLeftIcon className={cn("cn-rtl-flip size-4", className)} {...props} />
