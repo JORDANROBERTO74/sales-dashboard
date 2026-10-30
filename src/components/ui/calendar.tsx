@@ -134,7 +134,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }: { className?: string; rootRef: React.Ref<HTMLDivElement>; [key: string]: unknown }) => {
+        Root: ({ className, rootRef, ...props }: { className?: string; rootRef?: React.Ref<HTMLDivElement>; [key: string]: unknown }) => {
           return (
             <div
               data-slot="calendar"

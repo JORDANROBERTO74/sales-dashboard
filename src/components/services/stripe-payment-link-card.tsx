@@ -1,39 +1,18 @@
 "use client";
 
 import type { MouseEvent } from "react";
-import { Check, CircleHelp, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { StripePaymentLinkItem } from "@/data/stripe-payment-links";
 import { formatListedPrice } from "@/data/stripe-payment-links";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React from "react";
 
 type StripePaymentLinkCardProps = {
   item: StripePaymentLinkItem;
   showDuplicateNameHint: boolean;
 };
-
-function formatCreatedAt(iso: string) {
-  return new Date(iso).toLocaleDateString("es", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 export function StripePaymentLinkCard({
   item,
