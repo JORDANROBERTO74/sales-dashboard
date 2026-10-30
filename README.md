@@ -2,7 +2,7 @@
 
 A multi-account Stripe sales, commission and payout dashboard built with Next.js 15, Supabase and TypeScript. White-label ready.
 
-![Sales Dashboard landing page](docs/01-landing.png)
+![Sales Dashboard landing page](docs/01-landing.webp)
 
 ## What it is
 
@@ -29,11 +29,11 @@ It is a template, not a payment processor. Stripe remains the source of truth; t
 
 | Login | Dashboard |
 | --- | --- |
-| ![Login page](docs/02-login.png) | ![Operations dashboard](docs/03-dashboard.png) |
+| ![Login page](docs/02-login.webp) | ![Operations dashboard](docs/03-dashboard.webp) |
 
 | Transactions | Transaction detail |
 | --- | --- |
-| ![Transactions list](docs/04-transactions.png) | ![Transaction detail](docs/05-transaction-detail.png) |
+| ![Transactions list](docs/04-transactions.webp) | ![Transaction detail](docs/05-transaction-detail.webp) |
 
 ## Quick start
 
