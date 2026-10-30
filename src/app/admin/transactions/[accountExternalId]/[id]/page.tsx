@@ -2,10 +2,6 @@ import { requireAnyRole } from "@/lib/auth/require-auth";
 import { UserRole } from "@/lib/auth/permissions";
 import { TransactionDetailPageContent } from "@/components/transactions/transaction-detail-page-content";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
-};
-
 const TRANSACTIONS_ALLOWED_ROLES = [
   UserRole.OWNER,
   UserRole.ADMIN,
@@ -14,13 +10,19 @@ const TRANSACTIONS_ALLOWED_ROLES = [
   UserRole.VIEWER,
 ];
 
-export default async function AdminTransactionVascruzDetailPage({ params }: PageProps) {
+type PageProps = {
+  params: Promise<{ accountExternalId: string; id: string }>;
+};
+
+export default async function AdminTransactionAccountDetailPage({
+  params,
+}: PageProps) {
   await requireAnyRole(TRANSACTIONS_ALLOWED_ROLES, {
     redirectTo: "/auth/login",
     unauthorizedRedirectTo: "/auth/unauthorized",
   });
 
-  const { id } = await params;
+  const { id, accountExternalId } = await params;
 
-  return <TransactionDetailPageContent transactionId={id} backHref="/admin/transactions/vascruz" />;
+  return <TransactionDetailPageContent transactionId={id} backHref={`/admin/transactions/${accountExternalId}`} />;
 }

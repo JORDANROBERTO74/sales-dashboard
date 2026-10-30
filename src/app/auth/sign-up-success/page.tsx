@@ -8,6 +8,7 @@ import {
 import { Building2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { BRAND } from "@/config/brand";
 
 export default function Page() {
   return (
@@ -18,7 +19,7 @@ export default function Page() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
               <Building2 className="size-6" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">J-Node Sales</h1>
+            <h1 className="text-xl font-bold tracking-tight">{BRAND.appName}</h1>
           </div>
 
           <Card className="border-none shadow-lg">

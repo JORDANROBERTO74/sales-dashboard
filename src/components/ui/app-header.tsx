@@ -17,6 +17,7 @@ import Link from "next/link";
 import { GalleryVerticalEnd, Menu } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/config/brand";
 
 // Route to display name mapping
 const routeLabels: Record<string, string> = {
@@ -32,7 +33,6 @@ const routeLabels: Record<string, string> = {
   branches: "Sucursales",
   inventory: "Inventario",
   configuration: "Configuración",
-  jnode: "JNode",
   vascruz: "Vascruz",
   details: "Detalles",
   // Settings
@@ -147,7 +147,7 @@ export function AppHeader() {
           <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
             <GalleryVerticalEnd className="size-4" />
           </div>
-          <span className="truncate font-semibold text-sm">J-Node Sales</span>
+          <span className="truncate font-semibold text-sm">{BRAND.appName}</span>
         </Link>
         <Button variant="ghost" size="icon" className="size-9" onClick={toggleSidebar}>
           <Menu className="size-5" />

@@ -36,7 +36,7 @@ function firstAssignment(value: AssignmentInner | AssignmentInner[] | null | und
 }
 
 function payoutEligibility(
-  isVascruz: boolean,
+  requiresFundsAvailable: boolean,
   transactionStatus: string | null | undefined,
   fundsAvailableAt: string | null | undefined,
   commission: number,
@@ -56,7 +56,7 @@ function payoutEligibility(
       return { eligible: false, reason: "Estado no retirable" };
     }
   }
-  if (!isVascruz) {
+  if (requiresFundsAvailable) {
     if (!fundsAvailableAt) {
       return { eligible: false, reason: "Fondos aún no liberados" };
     }
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
   const { data: accountData, error: accountError } = await supabase
     .from("stripe_accounts")
-    .select("id, stripe_account_external_id")
+    .select("id, stripe_account_external_id, requires_funds_available")
     .eq("stripe_account_external_id", accountExternalId)
     .maybeSingle();
 
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const isVascruz = accountExternalId === "acct_vascruz";
+  const requiresFundsAvailable = accountData?.requires_funds_available ?? true;
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
   const listAllAssigned = scope === "all";
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     );
   } else {
     query = query.eq("transaction_status", "");
-    if (!isVascruz) {
+    if (requiresFundsAvailable) {
       query = query.not("funds_available_at", "is", null).lte("funds_available_at", new Date().toISOString());
     }
   }
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
     if ((row.transaction_status ?? "") === TRANSACTION_STATUS_WITHDRAWN) continue;
     const commission = Number(assignment.commission_amount ?? 0);
     const { eligible, reason } = payoutEligibility(
-      isVascruz,
+      requiresFundsAvailable,
       row.transaction_status,
       row.funds_available_at,
       commission,

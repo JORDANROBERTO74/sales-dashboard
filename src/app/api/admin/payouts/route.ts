@@ -416,22 +416,55 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const supabase = await createClient();
+  const { data: accountData, error: accountError } = await supabase
+    .from("stripe_accounts")
+    .select("id, requires_funds_available, admin_only_payouts")
+    .eq("stripe_account_external_id", accountExternalId)
+    .maybeSingle();
+  if (accountError) {
+    return NextResponse.json(
+      {
+        error: accountError.message,
+        error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED",
+      },
+      { status: 500 },
+    );
+  }
+  if (!accountData?.id) {
+    return NextResponse.json(
+      {
+        error: "Cuenta Stripe no encontrada",
+        error_code: "INVALID_STRIPE_ACCOUNT",
+      },
+      { status: 400 },
+    );
+  }
+
   if (
-    accountExternalId === "acct_vascruz" &&
+    accountData.admin_only_payouts &&
     auth.role !== UserRole.OWNER &&
     auth.role !== UserRole.ADMIN
   ) {
     return NextResponse.json(
       {
-        error:
-          "Solo owners y admins pueden realizar retiros en la cuenta Vascruz",
-        error_code: "VASCRUZ_PAYOUT_FORBIDDEN",
+        error: "Solo owners y admins pueden realizar retiros en esta cuenta",
+        error_code: "ACCOUNT_PAYOUT_FORBIDDEN",
       },
       { status: 403 },
     );
   }
 
-  const supabase = await createClient();
+  if (auth.role === UserRole.SELLER && userId !== auth.profileId) {
+    return NextResponse.json(
+      {
+        error: "Acceso denegado para crear retiros de otros sellers",
+        error_code: "FORBIDDEN_SCOPE",
+      },
+      { status: 403 },
+    );
+  }
+
   const { data: payoutUserData, error: payoutUserError } = await supabase
     .from("users")
     .select(
@@ -500,31 +533,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: accountData, error: accountError } = await supabase
-    .from("stripe_accounts")
-    .select("id")
-    .eq("stripe_account_external_id", accountExternalId)
-    .maybeSingle();
-  if (accountError) {
-    return NextResponse.json(
-      {
-        error: accountError.message,
-        error_code: "STRIPE_ACCOUNT_LOOKUP_FAILED",
-      },
-      { status: 500 },
-    );
-  }
-  if (!accountData?.id) {
-    return NextResponse.json(
-      {
-        error: "Cuenta Stripe no encontrada",
-        error_code: "INVALID_STRIPE_ACCOUNT",
-      },
-      { status: 400 },
-    );
-  }
-
-  const isVascruz = accountExternalId === "acct_vascruz";
+  const requiresFunds = accountData.requires_funds_available;
   const admin = createAdminClient();
 
   const { data: txRows, error: txFetchError } = await admin
@@ -615,7 +624,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isVascruz) {
+    if (requiresFunds) {
       if (!row.funds_available_at) {
         return NextResponse.json(
           {

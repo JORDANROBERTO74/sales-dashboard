@@ -1,9 +1,7 @@
 import Stripe from "stripe";
 
-export type StripeAccountName = "A" | "B";
-
 export type StripeAccountConfig = {
-  name: StripeAccountName;
+  name: string;
   externalId: string;
   secretKey: string;
   webhookSecret: string;
@@ -19,11 +17,12 @@ function requiredEnv(name: string): string {
 }
 
 function buildStripeAccountConfig(
-  name: StripeAccountName,
+  name: string,
+  envPrefix: string,
 ): StripeAccountConfig {
-  const externalId = requiredEnv(`STRIPE_ACCOUNT_${name}_EXTERNAL_ID`);
-  const secretKey = requiredEnv(`STRIPE_ACCOUNT_${name}_SECRET_KEY`);
-  const webhookSecret = requiredEnv(`STRIPE_ACCOUNT_${name}_WEBHOOK_SECRET`);
+  const externalId = requiredEnv(`${envPrefix}_EXTERNAL_ID`);
+  const secretKey = requiredEnv(`${envPrefix}_SECRET_KEY`);
+  const webhookSecret = requiredEnv(`${envPrefix}_WEBHOOK_SECRET`);
 
   return {
     name,
@@ -38,8 +37,8 @@ function buildStripeAccountConfig(
 }
 
 const stripeAccounts: StripeAccountConfig[] = [
-  buildStripeAccountConfig("A"),
-  buildStripeAccountConfig("B"),
+  buildStripeAccountConfig("Account A", "STRIPE_ACCOUNT_A"),
+  buildStripeAccountConfig("Account B", "STRIPE_ACCOUNT_B"),
 ];
 
 export function getStripeAccounts(): StripeAccountConfig[] {

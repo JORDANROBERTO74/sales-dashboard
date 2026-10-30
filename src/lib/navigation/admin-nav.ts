@@ -51,25 +51,8 @@ export const ADMIN_NAV_CONFIG: AdminNavItemConfig[] = [
   {
     key: "transactions",
     title: "Transacciones",
-    url: "#",
+    url: "/admin/transactions",
     iconKey: "transactions",
-    items: [
-      {
-        key: "transactions-accounts",
-        title: "Cuentas",
-        url: "/admin/transactions",
-      },
-      {
-        key: "transactions-jnode",
-        title: "JNode",
-        url: "/admin/transactions/jnode",
-      },
-      {
-        key: "transactions-vascruz",
-        title: "Vascruz",
-        url: "/admin/transactions/vascruz",
-      },
-    ],
   },
   {
     key: "balances",

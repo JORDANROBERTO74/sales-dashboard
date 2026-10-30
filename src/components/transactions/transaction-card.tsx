@@ -32,7 +32,7 @@ import { TRANSACTION_STATUS_PAID, TRANSACTION_STATUS_PAYOUT_PENDING } from "@/li
 
 type TransactionCardProps = {
   row: StripeTransactionRow;
-  accountRouteSegment: "jnode" | "vascruz";
+  accountRouteSegment: string;
   canManageAssignment: boolean;
   isSeller: boolean;
   currentUserId?: string;

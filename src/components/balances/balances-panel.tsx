@@ -49,12 +49,9 @@ function summaryFromKpis(kpis: BalancesKpis) {
 export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanelProps) {
   const { isAdminLike: canUseAdminFilters, isSeller, sellerId, canRunScopedQueries } =
     useUserScope();
-  const canCreatePayout =
-    accountExternalId === "acct_vascruz"
-      ? canUseAdminFilters
-      : (canUseAdminFilters || isSeller);
+  const canCreatePayout = canUseAdminFilters || isSeller;
   const currentUserId = sellerId;
-  const sourceTab = accountExternalId === "acct_vascruz" ? "vascruz" : "jnode";
+  const sourceTab = accountExternalId;
   const createMutation = useCreatePayout();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSellerId, setCreateSellerId] = useState("");
@@ -223,10 +220,6 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
                   });
                 }}
               />
-            ) : accountExternalId === "acct_vascruz" ? (
-              <p className="text-sm text-muted-foreground">
-                Solo admins pueden realizar retiros en Vascruz.
-              </p>
             ) : null}
           </div>
 
@@ -298,69 +291,36 @@ export function BalancesPanel({ accountExternalId, accountLabel }: BalancesPanel
             <>
               <div className="space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {accountExternalId === "acct_vascruz" ? (
-                    <>
-                      <Card>
-                        <CardHeader className="space-y-1">
-                          <CardDescription>Saldo disponible para retiro</CardDescription>
-                          <CardTitle className="text-2xl">
-                            {formatUsdFromCents(
-                              payoutDialogMaxCents(accountExternalId, data.kpis),
-                            )}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <p className="text-xs text-muted-foreground">
-                            La información principal para saber cuánto se puede retirar ahora.
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="space-y-1">
-                          <CardDescription>Saldo disponible para retiro</CardDescription>
-                          <CardTitle className="text-2xl">
-                            {formatUsdFromCents(
-                              payoutDialogMaxCents(accountExternalId, data.kpis),
-                            )}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <p className="text-xs text-muted-foreground">
-                            En Vascruz es el total ganado menos retiros completados y pendientes.
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </>
-                  ) : (
-                    <>
-                      <Card>
-                        <CardHeader className="space-y-1">
-                          <CardDescription>Saldo disponible para retiro</CardDescription>
-                          <CardTitle className="text-2xl">
-                            {formatUsdFromCents(data.kpis.available_for_payout_cents)}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <p className="text-xs text-muted-foreground">
-                            La información principal para saber cuánto se puede retirar ahora.
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="space-y-1">
-                          <CardDescription>Saldo entrante</CardDescription>
-                          <CardTitle className="text-2xl">
-                            {formatUsdFromCents(data.kpis.pending_earned_cents)}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <p className="text-xs text-muted-foreground">
-                            Fondos que aun se espera que se acrediten al saldo de Stripe.
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </>
-                  )}
+                  <>
+                    <Card>
+                      <CardHeader className="space-y-1">
+                        <CardDescription>Saldo disponible para retiro</CardDescription>
+                        <CardTitle className="text-2xl">
+                          {formatUsdFromCents(
+                            payoutDialogMaxCents(accountExternalId, data.kpis),
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-xs text-muted-foreground">
+                          La información principal para saber cuánto se puede retirar ahora.
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="space-y-1">
+                        <CardDescription>Saldo entrante</CardDescription>
+                        <CardTitle className="text-2xl">
+                          {formatUsdFromCents(data.kpis.pending_earned_cents)}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-xs text-muted-foreground">
+                          Fondos que aun se espera que se acrediten al saldo de Stripe.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </>
                 </div>
 
                 {kpiSummary ? (

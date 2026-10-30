@@ -26,7 +26,7 @@ import {
 } from "@/hooks/transactions/use-transactions";
 import { useUser } from "@/hooks/auth/use-user";
 import type { TransactionsFilters } from "@/types/transactions";
-import type { DateRange } from "react-day-picker";
+type DateRange = { from: Date | undefined; to: Date | undefined };
 
 const PAGE_SIZE = 20;
 const EMPTY_SELLERS: Array<{
@@ -37,7 +37,7 @@ const EMPTY_SELLERS: Array<{
 }> = [];
 type TransactionsPanelProps = {
   accountExternalId?: string;
-  accountRouteSegment: "jnode" | "vascruz";
+  accountRouteSegment: string;
 };
 
 function parseDateInputString(value: string): Date | undefined {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
+import { BRAND } from "@/config/brand";
 
 export function LandingFooter() {
   const year = new Date().getFullYear();
@@ -12,7 +13,7 @@ export function LandingFooter() {
             <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shadow-sm">
               <Building2 className="size-4" />
             </div>
-            <span>J-Node Sales</span>
+            <span>{BRAND.appName}</span>
           </Link>
           <p className="max-w-xs text-sm text-muted-foreground">
             Operacion centralizada de transacciones Stripe, comisiones,
@@ -91,7 +92,7 @@ export function LandingFooter() {
 
       <div className="border-t">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 text-xs text-muted-foreground">
-          <p>Copyright {year} J-Node Sales.</p>
+          <p>Copyright {year} {BRAND.appName}.</p>
           <p>Built for Stripe operations.</p>
         </div>
       </div>

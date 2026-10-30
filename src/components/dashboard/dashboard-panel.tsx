@@ -14,7 +14,7 @@ import { getLast30DaysRange } from "@/lib/dashboard/defaults";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
 import { formatUsdFromCents } from "@/lib/transactions/formatters";
 import type { DashboardFilters } from "@/types/dashboard";
-import type { DateRange } from "react-day-picker";
+type DateRange = { from: Date | undefined; to: Date | undefined };
 import { AccountGrossLineChart } from "@/components/dashboard/account-gross-line-chart";
 import { TopSellersBarChart } from "@/components/dashboard/top-sellers-bar-chart";
 

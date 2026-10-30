@@ -20,6 +20,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Building2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { BRAND } from "@/config/brand";
 
 // Password validation regex: minimum 8 characters, at least one uppercase, one lowercase and one number
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -80,7 +81,7 @@ export function SignUpForm({
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
           <Building2 className="size-6" />
         </div>
-        <h1 className="text-xl font-bold tracking-tight">J-Node Sales</h1>
+        <h1 className="text-xl font-bold tracking-tight">{BRAND.appName}</h1>
       </div>
 
       <Card className="border-none shadow-lg">

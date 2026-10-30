@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DateRange } from "react-day-picker";
+type DateRange = { from: Date | undefined; to: Date | undefined };
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PayoutsCreateDialog } from "@/components/payouts/payouts-create-dialog";
@@ -86,8 +86,7 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
     isSeller,
     canRunScopedQueries,
   } = useUserScope();
-  const canCreatePayout =
-    accountExternalId === "acct_vascruz" ? canManage : canManage || isSeller;
+  const canCreatePayout = canManage || isSeller;
   const createMutation = useCreatePayout();
   const updateMutation = useUpdatePayout();
   const infiniteSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -305,10 +304,6 @@ export function PayoutsPanel({ accountExternalId, accountLabel }: PayoutsPanelPr
                   });
                 }}
               />
-            ) : accountExternalId === "acct_vascruz" ? (
-              <p className="text-sm text-muted-foreground">
-                Solo admins pueden realizar retiros en Vascruz.
-              </p>
             ) : null}
           </div>
           <div className="inline-flex items-center gap-2">

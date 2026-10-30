@@ -33,6 +33,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { SettingsErrorState } from "@/components/settings/states/settings-error-state";
 import { getSettingsErrorMessage } from "@/lib/settings/errors";
+import { BRAND } from "@/config/brand";
 
 const onboardingSchema = z.object({
   fullName: z
@@ -135,7 +136,7 @@ export function OnboardingForm({ className, ...props }: OnboardingFormProps) {
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
           <Building2 className="size-6" />
         </div>
-        <h1 className="text-xl font-bold tracking-tight">J-Node Sales</h1>
+        <h1 className="text-xl font-bold tracking-tight">{BRAND.appName}</h1>
       </div>
 
       <Card className="border-none shadow-lg">

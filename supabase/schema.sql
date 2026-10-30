@@ -824,6 +824,11 @@ CREATE TABLE public.stripe_accounts (
     display_name TEXT NOT NULL
         CHECK (length(display_name) BETWEEN 1 AND 120),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Si TRUE, las transacciones requieren funds_available_at para ser elegibles a payout.
+    -- Si FALSE, las transacciones son elegibles inmediatamente (comportamiento legacy de cuentas específicas).
+    requires_funds_available BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Si TRUE, solo owner/admin pueden crear retiros en esta cuenta. Sellers no pueden.
+    admin_only_payouts BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -854,25 +859,8 @@ CREATE POLICY "stripe_accounts_delete_admin"
     ON public.stripe_accounts FOR DELETE TO authenticated
     USING (public.is_admin_or_owner());
 
--- Cuentas Stripe base para operación multi-cuenta.
-INSERT INTO public.stripe_accounts (stripe_account_external_id, display_name, is_active)
-VALUES
-    ('acct_jnode', 'JNode', TRUE),
-    ('acct_vascruz', 'Vascruz', TRUE)
-ON CONFLICT (stripe_account_external_id) DO NOTHING;
-
-CREATE OR REPLACE FUNCTION public.get_legacy_stripe_account_id()
-RETURNS UUID
-STABLE
-SECURITY DEFINER
-SET search_path = pg_catalog, public
-AS $$
-    SELECT sa.id
-    FROM public.stripe_accounts sa
-    WHERE sa.stripe_account_external_id = 'acct_jnode'
-    LIMIT 1;
-$$ LANGUAGE sql;
-
+-- Las cuentas Stripe se crean desde la UI de administracion o mediante migraciones.
+-- No hay datos semilla hardcodeados para soportar multi-cuenta (N cuentas).
 -- ==============================================================================
 -- 8. TRANSACCIONES DE STRIPE
 -- Almacena los datos de cada transacción sincronizada desde Stripe (via webhooks o API).
@@ -923,14 +911,6 @@ CREATE TABLE public.stripe_transactions (
     ),
     CONSTRAINT uq_stripe_tx_account_and_id UNIQUE (stripe_account_id, stripe_id)
 );
-
--- Backfill de filas existentes hacia la cuenta default (acct_jnode) y endurecimiento de constraint.
-UPDATE public.stripe_transactions
-SET stripe_account_id = public.get_legacy_stripe_account_id()
-WHERE stripe_account_id IS NULL;
-
-ALTER TABLE public.stripe_transactions
-    ALTER COLUMN stripe_account_id SET NOT NULL;
 
 CREATE INDEX idx_stripe_tx_type ON public.stripe_transactions(transaction_type);
 CREATE INDEX idx_stripe_tx_status ON public.stripe_transactions(stripe_status);
@@ -1689,7 +1669,11 @@ DECLARE
     base_sum INTEGER;
     affected_count INTEGER := 0;
 BEGIN
-    SELECT public.get_legacy_stripe_account_id() INTO legacy_account_id;
+    SELECT sa.id INTO legacy_account_id
+    FROM public.stripe_accounts sa
+    WHERE sa.is_active = TRUE
+    ORDER BY sa.created_at
+    LIMIT 1;
 
     FOR payout_rec IN
         SELECT id, user_id, amount
@@ -1892,9 +1876,8 @@ CREATE TRIGGER validate_payout_method
     EXECUTE FUNCTION public.validate_payout_method_exists();
 
 -- Validar que el monto del retiro no exceda el saldo permitido del seller.
--- Cuentas distintas de acct_vascruz: solo comisiones con fondos ya liberados por Stripe.
--- acct_vascruz: suma de todas las comisiones asignadas (sin filtrar por funds_available_at)
--- menos lo ya asignado a retiros pending/completed.
+-- Si la cuenta requiere fondos disponibles, solo se cuentan comisiones con funds_available_at liberado.
+-- Si no requiere fondos disponibles, se cuentan todas las comisiones asignadas.
 -- Advisory lock serializa creaciones concurrentes para el mismo seller.
 CREATE OR REPLACE FUNCTION public.validate_payout_balance()
 RETURNS TRIGGER
@@ -1902,7 +1885,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-    is_vascruz BOOLEAN;
+    requires_funds BOOLEAN;
     earned_side INTEGER;
     total_disbursed INTEGER;
     available_balance INTEGER;
@@ -1913,20 +1896,11 @@ BEGIN
 
     PERFORM pg_advisory_xact_lock(hashtext('payout_balance_' || NEW.user_id::text || '_' || NEW.stripe_account_id::text));
 
-    SELECT EXISTS (
-        SELECT 1
-        FROM public.stripe_accounts sa
-        WHERE sa.id = NEW.stripe_account_id
-          AND sa.stripe_account_external_id = 'acct_vascruz'
-    ) INTO is_vascruz;
+    SELECT sa.requires_funds_available INTO requires_funds
+    FROM public.stripe_accounts sa
+    WHERE sa.id = NEW.stripe_account_id;
 
-    IF is_vascruz THEN
-        SELECT COALESCE(SUM(ta.commission_amount), 0) INTO earned_side
-        FROM public.transaction_assignments ta
-        JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
-        WHERE ta.user_id = NEW.user_id
-          AND st.stripe_account_id = NEW.stripe_account_id;
-    ELSE
+    IF requires_funds THEN
         SELECT COALESCE(SUM(ta.commission_amount), 0) INTO earned_side
         FROM public.transaction_assignments ta
         JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
@@ -1934,6 +1908,12 @@ BEGIN
           AND st.stripe_account_id = NEW.stripe_account_id
           AND st.funds_available_at IS NOT NULL
           AND st.funds_available_at <= NOW();
+    ELSE
+        SELECT COALESCE(SUM(ta.commission_amount), 0) INTO earned_side
+        FROM public.transaction_assignments ta
+        JOIN public.stripe_transactions st ON st.id = ta.stripe_transaction_id
+        WHERE ta.user_id = NEW.user_id
+          AND st.stripe_account_id = NEW.stripe_account_id;
     END IF;
 
     SELECT COALESCE(SUM(allocated_amount), 0) INTO total_disbursed
@@ -1946,13 +1926,8 @@ BEGIN
     available_balance := earned_side - total_disbursed;
 
     IF NEW.amount > available_balance THEN
-        IF is_vascruz THEN
-            RAISE EXCEPTION 'Saldo insuficiente (Vascruz): disponible = % centavos, solicitado = % centavos',
-                available_balance, NEW.amount;
-        ELSE
-            RAISE EXCEPTION 'Saldo insuficiente: disponible = % centavos (solo fondos liberados), solicitado = % centavos',
-                available_balance, NEW.amount;
-        END IF;
+        RAISE EXCEPTION 'Saldo insuficiente: disponible = % centavos, solicitado = % centavos',
+            available_balance, NEW.amount;
     END IF;
 
     RETURN NEW;
@@ -3383,9 +3358,9 @@ SELECT cron.schedule(
 -- 17.5 RUNBOOK DE MIGRACIÓN (MULTI-CUENTA STRIPE)
 -- Orden recomendado al migrar una base existente:
 -- 1) Crear public.stripe_accounts + políticas.
--- 2) Insertar cuentas iniciales: acct_jnode y acct_vascruz.
+-- 2) Insertar cuentas iniciales desde la UI de administracion.
 -- 3) Agregar stripe_account_id en stripe_transactions (nullable).
--- 4) Backfill de stripe_account_id con cuenta default (acct_jnode).
+-- 4) Backfill de stripe_account_id con cuenta default.
 -- 5) Imponer NOT NULL en stripe_account_id.
 -- 6) Cambiar unicidad a (stripe_account_id, stripe_id).
 -- 7) Crear índices por cuenta y actualizar vista stripe_transactions_safe.

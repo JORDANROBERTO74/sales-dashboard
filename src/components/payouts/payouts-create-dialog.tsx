@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CreatePayoutPayload } from "@/hooks/payouts/use-payouts";
 import { useInfiniteWithdrawablePayoutTransactions } from "@/hooks/payouts/use-payouts";
 import { formatDateTime, formatUsdFromCents } from "@/lib/transactions/formatters";
+import { createClient } from "@/lib/supabase/client";
 import type { PayoutPaymentMethodOption, PayoutSellerOption } from "@/types/payouts";
 
 type PayoutsCreateDialogProps = {
@@ -94,6 +95,7 @@ export function PayoutsCreateDialog({
   const [formNotes, setFormNotes] = useState("");
   const payoutFormBodyScrollRef = useRef<HTMLDivElement>(null);
   const withdrawableSentinelRef = useRef<HTMLLIElement>(null);
+  const [accountRequiresFunds, setAccountRequiresFunds] = useState<boolean>(true);
 
   const withdrawableQuery = useInfiniteWithdrawablePayoutTransactions(
     selectedSellerId,
@@ -125,7 +127,19 @@ export function PayoutsCreateDialog({
   const platformFeeCents = toCents(formPlatformFee || "0");
   const normalizedPlatformFee = Number.isFinite(platformFeeCents) ? Math.max(0, platformFeeCents) : 0;
 
-  const isVascruzAccount = accountExternalId === "acct_vascruz";
+  useEffect(() => {
+    const loadAccountProps = async () => {
+      const supabase = createClient();
+      const { data: account } = await supabase
+        .from("stripe_accounts")
+        .select("requires_funds_available, admin_only_payouts")
+        .eq("stripe_account_external_id", accountExternalId)
+        .maybeSingle();
+      setAccountRequiresFunds(account?.requires_funds_available ?? true);
+    };
+    void loadAccountProps();
+  }, [accountExternalId]);
+
   const exceedsAvailableBalance =
     selectedTotalCents > 0 && selectedTotalCents > availableForPayoutCents;
   const platformFeeExceedsAmount = normalizedPlatformFee > selectedTotalCents;
@@ -325,13 +339,13 @@ export function PayoutsCreateDialog({
               <p className="text-muted-foreground">
                 {selectedSellerId
                   ? isAvailableBalanceLoading
-                    ? isVascruzAccount
+                    ? accountRequiresFunds
                       ? "Cargando tope de retiro..."
                       : "Cargando saldo disponible..."
-                    : isVascruzAccount
-                      ? `Máximo retirable (Vascruz): ${formatUsdFromCents(availableForPayoutCents)}`
+                    : accountRequiresFunds
+                      ? `Máximo retirable: ${formatUsdFromCents(availableForPayoutCents)}`
                       : `Saldo disponible: ${formatUsdFromCents(availableForPayoutCents)}`
-                  : isVascruzAccount
+                  : accountRequiresFunds
                     ? "Selecciona un usuario para ver el máximo retirable"
                     : "Selecciona un usuario para ver su saldo disponible"}
               </p>

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
 const TRANSACTIONS_ALLOWED_ROLES = [
   UserRole.OWNER,
@@ -19,30 +20,18 @@ const TRANSACTIONS_ALLOWED_ROLES = [
   UserRole.VIEWER,
 ];
 
-const TRANSACTIONS_SECTIONS = [
-  {
-    key: "jnode",
-    title: "Cuenta Stripe JNode",
-    description: "Ver transacciones de la cuenta Stripe JNode.",
-    href: "/admin/transactions/jnode",
-    accessLabel: "JNode",
-    cta: "Ir a JNode",
-  },
-  {
-    key: "vascruz",
-    title: "Cuenta Stripe Vascruz",
-    description: "Ver transacciones de la cuenta Stripe Vascruz.",
-    href: "/admin/transactions/vascruz",
-    accessLabel: "Vascruz",
-    cta: "Ir a Vascruz",
-  },
-] as const;
-
 export default async function AdminTransactionsPage() {
   await requireAnyRole(TRANSACTIONS_ALLOWED_ROLES, {
     redirectTo: "/auth/login",
     unauthorizedRedirectTo: "/auth/unauthorized",
   });
+
+  const supabase = await createClient();
+  const { data: accounts } = await supabase
+    .from("stripe_accounts")
+    .select("stripe_account_external_id, display_name, is_active")
+    .eq("is_active", true)
+    .order("display_name");
 
   return (
     <div className="p-4 md:p-6 space-y-5 md:space-y-6">
@@ -54,18 +43,24 @@ export default async function AdminTransactionsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {TRANSACTIONS_SECTIONS.map((section) => (
-          <Card key={section.key}>
+        {(accounts ?? []).map((account) => (
+          <Card key={account.stripe_account_external_id}>
             <CardHeader className="space-y-2">
               <div className="flex items-center justify-between">
-                <CardTitle>{section.title}</CardTitle>
+                <CardTitle>{account.display_name}</CardTitle>
               </div>
-              <CardDescription>{section.description}</CardDescription>
+              <CardDescription>
+                Ver transacciones de la cuenta Stripe {account.display_name}.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild variant="outline" className="w-full sm:w-auto">
-                <Link href={section.href}>
-                  {section.cta}
+              <Button
+                asChild
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <Link href={`/admin/transactions/${account.stripe_account_external_id}`}>
+                  Ir a {account.display_name}
                   <ArrowRight />
                 </Link>
               </Button>
