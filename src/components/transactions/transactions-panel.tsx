@@ -26,7 +26,7 @@ import {
 } from "@/hooks/transactions/use-transactions";
 import { useUser } from "@/hooks/auth/use-user";
 import type { TransactionsFilters } from "@/types/transactions";
-type DateRange = { from: Date | undefined; to: Date | undefined };
+type DateRange = { from: Date | undefined; to?: Date | undefined };
 
 const PAGE_SIZE = 20;
 const EMPTY_SELLERS: Array<{

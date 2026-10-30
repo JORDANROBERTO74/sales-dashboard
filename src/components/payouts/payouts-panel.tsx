@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-type DateRange = { from: Date | undefined; to: Date | undefined };
+type DateRange = { from: Date | undefined; to?: Date | undefined };
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PayoutsCreateDialog } from "@/components/payouts/payouts-create-dialog";
